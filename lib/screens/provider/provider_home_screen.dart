@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'provider_services_screen.dart';
 import '../auth/login_screen.dart';
 
 class ProviderHomeScreen extends StatelessWidget {
@@ -70,6 +71,26 @@ class ProviderHomeScreen extends StatelessWidget {
               padding: EdgeInsets.fromLTRB(20, 24, 20, 12),
               child: Text('Booking Requests',
                   style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+            ),
+            Padding(
+              padding: const EdgeInsets.all(20),
+              child: SizedBox(
+                width: double.infinity,
+                height: 52,
+                child: ElevatedButton.icon(
+                  onPressed: () => Navigator.push(context,
+                      MaterialPageRoute(
+                          builder: (_) => const ProviderServicesScreen())),
+                  icon: const Icon(Icons.handyman, color: Colors.white),
+                  label: const Text('Manage My Services',
+                      style: TextStyle(fontSize: 16, color: Colors.white)),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: const Color(0xFF2563EB),
+                    shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12)),
+                  ),
+                ),
+              ),
             ),
             StreamBuilder<QuerySnapshot>(
               stream: FirebaseFirestore.instance
