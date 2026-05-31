@@ -58,7 +58,8 @@ class _LoginScreenState extends State<LoginScreen> {
             children: [
               const SizedBox(height: 60),
               const Text('ServiceConnect',
-                  style: TextStyle(fontSize: 28,
+                  style: TextStyle(
+                      fontSize: 28,
                       fontWeight: FontWeight.bold,
                       color: Color(0xFF2563EB))),
               const SizedBox(height: 8),
