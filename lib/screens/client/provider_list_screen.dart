@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'booking_screen.dart';
+
 
 class ProviderListScreen extends StatelessWidget {
   final String category;
@@ -75,6 +77,17 @@ class ProviderListScreen extends StatelessWidget {
                       const Icon(Icons.star, color: Colors.amber, size: 16),
                       Text((data['rating'] ?? 0.0).toStringAsFixed(1)),
                     ],
+                  ),
+                  onTap: () => Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (_) => BookingScreen(
+                        providerId: providers[index].id,
+                        providerName: data['name'] ?? 'Provider',
+                        category: data['category'] ?? '',
+                        price: (data['price'] ?? 0).toDouble(),
+                      ),
+                    ),
                   ),
                 ),
               );
