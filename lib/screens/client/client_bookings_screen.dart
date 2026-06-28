@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'review_screen.dart';
 
 class ClientBookingsScreen extends StatelessWidget {
   const ClientBookingsScreen({super.key});
@@ -125,6 +126,32 @@ class ClientBookingsScreen extends StatelessWidget {
                         Text('Notes: ${data['notes']}',
                             style: const TextStyle(
                                 color: Colors.grey, fontSize: 13)),
+                      ],
+                      if (status == 'accepted' && (data['reviewed'] != true)) ...[
+                        const SizedBox(height: 12),
+                        SizedBox(
+                          width: double.infinity,
+                          child: ElevatedButton.icon(
+                            onPressed: () => Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                builder: (_) => ReviewScreen(
+                                  providerId: data['providerId'],
+                                  providerName: data['providerName'],
+                                  bookingId: bookings[index].id,
+                                ),
+                              ),
+                            ),
+                            icon: const Icon(Icons.star, color: Colors.white, size: 16),
+                            label: const Text('Leave a Review',
+                                style: TextStyle(color: Colors.white)),
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: Colors.amber[700],
+                              shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(10)),
+                            ),
+                          ),
+                        ),
                       ],
                     ],
                   ),
