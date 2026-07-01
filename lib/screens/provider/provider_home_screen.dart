@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'provider_services_screen.dart';
+import 'provider_reviews_screen.dart';
 import '../auth/login_screen.dart';
 
 class ProviderHomeScreen extends StatelessWidget {
@@ -86,6 +87,26 @@ class ProviderHomeScreen extends StatelessWidget {
                       style: TextStyle(fontSize: 16, color: Colors.white)),
                   style: ElevatedButton.styleFrom(
                     backgroundColor: const Color(0xFF2563EB),
+                    shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12)),
+                  ),
+                ),
+              ),
+            ),
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 20),
+              child: SizedBox(
+                width: double.infinity,
+                height: 52,
+                child: OutlinedButton.icon(
+                  onPressed: () => Navigator.push(context,
+                      MaterialPageRoute(
+                          builder: (_) => const ProviderReviewsScreen())),
+                  icon: const Icon(Icons.star, color: Color(0xFF2563EB)),
+                  label: const Text('View My Reviews',
+                      style: TextStyle(color: Color(0xFF2563EB), fontSize: 16)),
+                  style: OutlinedButton.styleFrom(
+                    side: const BorderSide(color: Color(0xFF2563EB)),
                     shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(12)),
                   ),
