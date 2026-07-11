@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import '../../services/notification_service.dart';
 
 class BookingScreen extends StatefulWidget {
   final String providerId;
@@ -62,7 +63,10 @@ class _BookingScreenState extends State<BookingScreen> {
           '${_selectedDate!.day}/${_selectedDate!.month}/${_selectedDate!.year}';
       final timeStr = _selectedTime!.format(context);
 
-      await FirebaseFirestore.instance.collection('bookings').add({
+      // Save booking and get reference
+      final bookingRef = await FirebaseFirestore.instance
+          .collection('bookings')
+          .add({
         'clientId': user.uid,
         'clientName': clientName,
         'providerId': widget.providerId,
@@ -73,12 +77,24 @@ class _BookingScreenState extends State<BookingScreen> {
         'time': timeStr,
         'notes': _notesController.text.trim(),
         'status': 'pending',
+        'reviewed': false,
         'createdAt': FieldValue.serverTimestamp(),
       });
 
+      // Notify provider
+      await NotificationService.sendNotification(
+        toUserId: widget.providerId,
+        title: 'New Booking Request! 📅',
+        body:
+            '$clientName has requested your ${widget.category} service on $dateStr at $timeStr',
+        type: 'booking_received',
+        bookingId: bookingRef.id,
+      );
+
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Booking submitted successfully!'),
+        const SnackBar(
+            content: Text('Booking submitted successfully!'),
             backgroundColor: Colors.green),
       );
       Navigator.pop(context);
@@ -212,7 +228,8 @@ class _BookingScreenState extends State<BookingScreen> {
               controller: _notesController,
               maxLines: 3,
               decoration: InputDecoration(
-                hintText: 'Describe your issue or any special requirements...',
+                hintText:
+                    'Describe your issue or any special requirements...',
                 border: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(12)),
                 filled: true,

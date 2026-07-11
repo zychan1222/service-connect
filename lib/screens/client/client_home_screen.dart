@@ -5,6 +5,7 @@ import '../auth/login_screen.dart';
 import 'client_bookings_screen.dart';
 import 'recommendations_screen.dart';
 import 'provider_list_screen.dart';
+import '../../widgets/notification_bell.dart';
 
 class ClientHomeScreen extends StatelessWidget {
   const ClientHomeScreen({super.key});
@@ -32,12 +33,15 @@ class ClientHomeScreen extends StatelessWidget {
           IconButton(
             icon: const Icon(Icons.auto_awesome, color: Colors.white),
             onPressed: () => Navigator.push(context,
-                MaterialPageRoute(builder: (_) => const RecommendationsScreen())),
+                MaterialPageRoute(
+                    builder: (_) => const RecommendationsScreen())),
           ),
+          const NotificationBell(),
           IconButton(
             icon: const Icon(Icons.bookmark, color: Colors.white),
             onPressed: () => Navigator.push(context,
-                MaterialPageRoute(builder: (_) => const ClientBookingsScreen())),
+                MaterialPageRoute(
+                    builder: (_) => const ClientBookingsScreen())),
           ),
           IconButton(
             icon: const Icon(Icons.logout, color: Colors.white),

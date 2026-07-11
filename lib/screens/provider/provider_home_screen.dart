@@ -4,6 +4,8 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'provider_services_screen.dart';
 import 'provider_reviews_screen.dart';
 import '../auth/login_screen.dart';
+import '../../services/notification_service.dart';
+import '../../widgets/notification_bell.dart';
 
 class ProviderHomeScreen extends StatelessWidget {
   const ProviderHomeScreen({super.key});
@@ -19,6 +21,7 @@ class ProviderHomeScreen extends StatelessWidget {
         title: const Text('ServiceConnect',
             style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
         actions: [
+          const NotificationBell(),
           IconButton(
             icon: const Icon(Icons.logout, color: Colors.white),
             onPressed: () async {
@@ -104,7 +107,8 @@ class ProviderHomeScreen extends StatelessWidget {
                           builder: (_) => const ProviderReviewsScreen())),
                   icon: const Icon(Icons.star, color: Color(0xFF2563EB)),
                   label: const Text('View My Reviews',
-                      style: TextStyle(color: Color(0xFF2563EB), fontSize: 16)),
+                      style:
+                          TextStyle(color: Color(0xFF2563EB), fontSize: 16)),
                   style: OutlinedButton.styleFrom(
                     side: const BorderSide(color: Color(0xFF2563EB)),
                     shape: RoundedRectangleBorder(
@@ -113,6 +117,7 @@ class ProviderHomeScreen extends StatelessWidget {
                 ),
               ),
             ),
+            const SizedBox(height: 12),
             StreamBuilder<QuerySnapshot>(
               stream: FirebaseFirestore.instance
                   .collection('bookings')
@@ -203,6 +208,15 @@ class ProviderHomeScreen extends StatelessWidget {
                                             .collection('bookings')
                                             .doc(bookings[index].id)
                                             .update({'status': 'accepted'});
+                                        await NotificationService
+                                            .sendNotification(
+                                          toUserId: data['clientId'],
+                                          title: 'Booking Accepted! ✅',
+                                          body:
+                                              '${data['providerName'] ?? 'Your provider'} has accepted your booking on ${data['date']}',
+                                          type: 'booking_accepted',
+                                          bookingId: bookings[index].id,
+                                        );
                                       },
                                       style: ElevatedButton.styleFrom(
                                           backgroundColor: Colors.green),
@@ -219,6 +233,15 @@ class ProviderHomeScreen extends StatelessWidget {
                                             .collection('bookings')
                                             .doc(bookings[index].id)
                                             .update({'status': 'declined'});
+                                        await NotificationService
+                                            .sendNotification(
+                                          toUserId: data['clientId'],
+                                          title: 'Booking Declined ❌',
+                                          body:
+                                              '${data['providerName'] ?? 'Your provider'} is unavailable on ${data['date']}. Please try another provider.',
+                                          type: 'booking_declined',
+                                          bookingId: bookings[index].id,
+                                        );
                                       },
                                       style: OutlinedButton.styleFrom(
                                           foregroundColor: Colors.red),
