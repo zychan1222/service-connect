@@ -37,7 +37,7 @@ class _ProviderServicesScreenState extends State<ProviderServicesScreen> {
             'description': _nameController.text.trim(),
             'price': double.tryParse(_priceController.text) ?? 0,
             'rating': 0.0,
-            'isVerified': true,
+            'isVerified': false,
             'createdAt': FieldValue.serverTimestamp(),
           });
       if (!mounted) return;

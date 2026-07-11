@@ -4,6 +4,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'register_screen.dart';
 import '../client/client_home_screen.dart';
 import '../provider/provider_home_screen.dart';
+import '../admin/admin_dashboard_screen.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -32,7 +33,10 @@ class _LoginScreenState extends State<LoginScreen> {
           .get();
       final role = doc.data()?['role'] ?? 'client';
       if (!mounted) return;
-      if (role == 'provider') {
+      if (role == 'admin') {
+        Navigator.pushReplacement(context,
+            MaterialPageRoute(builder: (_) => const AdminDashboardScreen()));
+      } else if (role == 'provider') {
         Navigator.pushReplacement(context,
             MaterialPageRoute(builder: (_) => const ProviderHomeScreen()));
       } else {
