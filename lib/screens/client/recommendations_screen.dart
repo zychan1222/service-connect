@@ -40,52 +40,63 @@ class _RecommendationsScreenState extends State<RecommendationsScreen> {
       }
     }
 
-    // Step 3: Get all verified providers
+    // Step 3: Get all verified providers and their services
     final providersSnap = await FirebaseFirestore.instance
         .collection('providers')
         .where('isVerified', isEqualTo: true)
         .get();
 
-    // Step 4: Score each provider using hybrid algorithm
-    // Score = (category_match_weight * 0.5) + (rating * 0.3) + (booking_count * 0.2)
     final List<Map<String, dynamic>> scored = [];
-    for (final doc in providersSnap.docs) {
-      final data = doc.data();
-      final category = data['category'] as String? ?? '';
-      final rating = (data['rating'] ?? 0.0).toDouble();
-      final bookingCount = (data['bookingCount'] ?? 0).toInt();
 
-      // Category match weight — higher if user has booked this before
-      final categoryWeight = categoryCount.containsKey(category)
-          ? (categoryCount[category]! * 10).toDouble()
-          : 0.0;
+    for (final providerDoc in providersSnap.docs) {
+      final providerData = providerDoc.data();
+      final servicesSnap = await FirebaseFirestore.instance
+          .collection('providers')
+          .doc(providerDoc.id)
+          .collection('services')
+          .where('isActive', isEqualTo: true)
+          .get();
 
-      // Composite score
-      final score =
-          (categoryWeight * 0.5) + (rating * 10 * 0.3) + (bookingCount * 0.2);
+      for (final serviceDoc in servicesSnap.docs) {
+        final serviceData = serviceDoc.data();
+        final category = serviceData['category'] as String? ?? '';
+        final rating = (providerData['rating'] ?? 0.0).toDouble();
+        final bookingCount = (providerData['bookingCount'] ?? 0).toInt();
 
-      scored.add({
-        'id': doc.id,
-        'name': data['name'] ?? 'Provider',
-        'category': category,
-        'price': (data['price'] ?? 0).toDouble(),
-        'rating': rating,
-        'description': data['description'] ?? '',
-        'score': score,
-        'isRecommended': categoryWeight > 0,
-      });
+        // Category match weight
+        final categoryWeight = categoryCount.containsKey(category)
+            ? (categoryCount[category]! * 10).toDouble()
+            : 0.0;
+
+        // Composite score
+        final score = (categoryWeight * 0.5) +
+            (rating * 10 * 0.3) +
+            (bookingCount * 0.2);
+
+        scored.add({
+          'id': providerDoc.id,
+          'serviceId': serviceDoc.id,
+          'name': providerData['name'] ?? 'Provider',
+          'category': category,
+          'price': (serviceData['price'] ?? 0).toDouble(),
+          'rating': rating,
+          'description': serviceData['description'] ?? '',
+          'score': score,
+          'isRecommended': categoryWeight > 0,
+        });
+      }
     }
 
-    // Step 5: Sort by score descending
+    // Step 4: Sort by score descending
     scored.sort((a, b) => (b['score'] as double).compareTo(a['score']));
 
-    // Step 6: Split into recommended vs others
+    // Step 5: Split into recommended vs others
     final recommended =
         scored.where((p) => p['isRecommended'] == true).toList();
     final others =
         scored.where((p) => p['isRecommended'] == false).toList();
 
-    // Step 7: Generate insight text
+    // Step 6: Generate insight text
     String insight = '';
     if (categoryCount.isEmpty) {
       insight = 'Book a service to get personalised recommendations!';
@@ -134,7 +145,6 @@ class _RecommendationsScreenState extends State<RecommendationsScreen> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  // Insight banner
                   Container(
                     width: double.infinity,
                     margin: const EdgeInsets.all(16),
@@ -158,8 +168,6 @@ class _RecommendationsScreenState extends State<RecommendationsScreen> {
                       ],
                     ),
                   ),
-
-                  // Recommended section
                   if (_recommended.isNotEmpty) ...[
                     const Padding(
                       padding: EdgeInsets.fromLTRB(16, 8, 16, 8),
@@ -176,8 +184,6 @@ class _RecommendationsScreenState extends State<RecommendationsScreen> {
                     ),
                     ..._recommended.map((p) => _providerCard(p, true)),
                   ],
-
-                  // Other providers
                   if (_others.isNotEmpty) ...[
                     const Padding(
                       padding: EdgeInsets.fromLTRB(16, 16, 16, 8),
@@ -187,7 +193,6 @@ class _RecommendationsScreenState extends State<RecommendationsScreen> {
                     ),
                     ..._others.map((p) => _providerCard(p, false)),
                   ],
-
                   if (_recommended.isEmpty && _others.isEmpty)
                     const Center(
                       child: Padding(
@@ -203,7 +208,6 @@ class _RecommendationsScreenState extends State<RecommendationsScreen> {
                         ),
                       ),
                     ),
-
                   const SizedBox(height: 20),
                 ],
               ),
@@ -225,6 +229,8 @@ class _RecommendationsScreenState extends State<RecommendationsScreen> {
               providerName: provider['name'],
               category: provider['category'],
               price: provider['price'],
+              serviceId: provider['serviceId'],
+              serviceDescription: provider['description'],
             ),
           ),
         ),

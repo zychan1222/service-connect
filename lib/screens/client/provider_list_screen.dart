@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'booking_screen.dart';
 
-
 class ProviderListScreen extends StatelessWidget {
   final String category;
   const ProviderListScreen({super.key, required this.category});
@@ -15,18 +14,14 @@ class ProviderListScreen extends StatelessWidget {
         backgroundColor: const Color(0xFF2563EB),
         foregroundColor: Colors.white,
       ),
-      body: StreamBuilder<QuerySnapshot>(
-        stream: FirebaseFirestore.instance
-            .collection('providers')
-            .where('category', isEqualTo: category)
-            .where('isVerified', isEqualTo: true)
-            .snapshots(),
+      body: FutureBuilder<List<Map<String, dynamic>>>(
+        future: _fetchServicesByCategory(category),
         builder: (context, snapshot) {
           if (!snapshot.hasData) {
             return const Center(child: CircularProgressIndicator());
           }
-          final providers = snapshot.data!.docs;
-          if (providers.isEmpty) {
+          final services = snapshot.data!;
+          if (services.isEmpty) {
             return Center(
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.center,
@@ -41,9 +36,9 @@ class ProviderListScreen extends StatelessWidget {
           }
           return ListView.builder(
             padding: const EdgeInsets.all(16),
-            itemCount: providers.length,
+            itemCount: services.length,
             itemBuilder: (context, index) {
-              final data = providers[index].data() as Map<String, dynamic>;
+              final data = services[index];
               return Card(
                 margin: const EdgeInsets.only(bottom: 12),
                 shape: RoundedRectangleBorder(
@@ -54,18 +49,19 @@ class ProviderListScreen extends StatelessWidget {
                     backgroundColor: const Color(0xFF2563EB),
                     radius: 28,
                     child: Text(
-                      (data['name'] ?? 'P')[0].toUpperCase(),
+                      (data['providerName'] ?? 'P')[0].toUpperCase(),
                       style: const TextStyle(
                           color: Colors.white, fontSize: 20),
                     ),
                   ),
-                  title: Text(data['name'] ?? 'Provider',
-                      style: const TextStyle(fontWeight: FontWeight.bold)),
+                  title: Text(data['providerName'] ?? 'Provider',
+                      style:
+                          const TextStyle(fontWeight: FontWeight.bold)),
                   subtitle: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text(data['category'] ?? ''),
-                      Text('RM ${data['price'] ?? 0}/hr',
+                      Text(data['description'] ?? ''),
+                      Text('RM ${data['price']}/hr',
                           style: const TextStyle(
                               color: Color(0xFF2563EB),
                               fontWeight: FontWeight.w500)),
@@ -74,18 +70,22 @@ class ProviderListScreen extends StatelessWidget {
                   trailing: Row(
                     mainAxisSize: MainAxisSize.min,
                     children: [
-                      const Icon(Icons.star, color: Colors.amber, size: 16),
-                      Text((data['rating'] ?? 0.0).toStringAsFixed(1)),
+                      const Icon(Icons.star,
+                          color: Colors.amber, size: 16),
+                      Text((data['providerRating'] ?? 0.0)
+                          .toStringAsFixed(1)),
                     ],
                   ),
                   onTap: () => Navigator.push(
                     context,
                     MaterialPageRoute(
                       builder: (_) => BookingScreen(
-                        providerId: providers[index].id,
-                        providerName: data['name'] ?? 'Provider',
-                        category: data['category'] ?? '',
-                        price: (data['price'] ?? 0).toDouble(),
+                        providerId: data['providerId'],
+                        providerName: data['providerName'],
+                        category: data['category'],
+                        price: (data['price'] as num).toDouble(),
+                        serviceId: data['serviceId'],
+                        serviceDescription: data['description'],
                       ),
                     ),
                   ),
@@ -96,5 +96,38 @@ class ProviderListScreen extends StatelessWidget {
         },
       ),
     );
+  }
+
+  Future<List<Map<String, dynamic>>> _fetchServicesByCategory(
+      String category) async {
+    final providersSnap = await FirebaseFirestore.instance
+        .collection('providers')
+        .where('isVerified', isEqualTo: true)
+        .get();
+
+    final List<Map<String, dynamic>> results = [];
+
+    for (final providerDoc in providersSnap.docs) {
+      final providerData = providerDoc.data();
+      final servicesSnap = await FirebaseFirestore.instance
+          .collection('providers')
+          .doc(providerDoc.id)
+          .collection('services')
+          .where('category', isEqualTo: category)
+          .where('isActive', isEqualTo: true)
+          .get();
+
+      for (final serviceDoc in servicesSnap.docs) {
+        final serviceData = serviceDoc.data();
+        results.add({
+          ...serviceData,
+          'serviceId': serviceDoc.id,
+          'providerId': providerDoc.id,
+          'providerName': providerData['name'] ?? '',
+          'providerRating': providerData['rating'] ?? 0.0,
+        });
+      }
+    }
+    return results;
   }
 }

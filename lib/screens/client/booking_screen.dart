@@ -8,6 +8,8 @@ class BookingScreen extends StatefulWidget {
   final String providerName;
   final String category;
   final double price;
+  final String serviceId;
+  final String serviceDescription;
 
   const BookingScreen({
     super.key,
@@ -15,6 +17,8 @@ class BookingScreen extends StatefulWidget {
     required this.providerName,
     required this.category,
     required this.price,
+    required this.serviceId,
+    required this.serviceDescription,
   });
 
   @override
@@ -63,7 +67,7 @@ class _BookingScreenState extends State<BookingScreen> {
           '${_selectedDate!.day}/${_selectedDate!.month}/${_selectedDate!.year}';
       final timeStr = _selectedTime!.format(context);
 
-      // Save booking and get reference
+      // Snapshot service details at booking time
       final bookingRef = await FirebaseFirestore.instance
           .collection('bookings')
           .add({
@@ -71,6 +75,8 @@ class _BookingScreenState extends State<BookingScreen> {
         'clientName': clientName,
         'providerId': widget.providerId,
         'providerName': widget.providerName,
+        'serviceId': widget.serviceId,
+        'serviceDescription': widget.serviceDescription,
         'category': widget.category,
         'price': widget.price,
         'date': dateStr,
@@ -135,19 +141,28 @@ class _BookingScreenState extends State<BookingScreen> {
                       ),
                     ),
                     const SizedBox(width: 16),
-                    Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(widget.providerName,
-                            style: const TextStyle(
-                                fontWeight: FontWeight.bold, fontSize: 16)),
-                        Text(widget.category,
-                            style: const TextStyle(color: Colors.grey)),
-                        Text('RM ${widget.price}/hr',
-                            style: const TextStyle(
-                                color: Color(0xFF2563EB),
-                                fontWeight: FontWeight.w500)),
-                      ],
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(widget.providerName,
+                              style: const TextStyle(
+                                  fontWeight: FontWeight.bold,
+                                  fontSize: 16)),
+                          Text(widget.category,
+                              style:
+                                  const TextStyle(color: Colors.grey)),
+                          Text(widget.serviceDescription,
+                              style: const TextStyle(
+                                  color: Colors.grey, fontSize: 12),
+                              maxLines: 2,
+                              overflow: TextOverflow.ellipsis),
+                          Text('RM ${widget.price}/hr',
+                              style: const TextStyle(
+                                  color: Color(0xFF2563EB),
+                                  fontWeight: FontWeight.w500)),
+                        ],
+                      ),
                     ),
                   ],
                 ),
@@ -155,7 +170,8 @@ class _BookingScreenState extends State<BookingScreen> {
             ),
             const SizedBox(height: 24),
             const Text('Select Date & Time',
-                style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+                style: TextStyle(
+                    fontSize: 16, fontWeight: FontWeight.bold)),
             const SizedBox(height: 12),
             Row(
               children: [
@@ -167,7 +183,8 @@ class _BookingScreenState extends State<BookingScreen> {
                       decoration: BoxDecoration(
                         color: Colors.white,
                         borderRadius: BorderRadius.circular(12),
-                        border: Border.all(color: Colors.grey.shade300),
+                        border:
+                            Border.all(color: Colors.grey.shade300),
                       ),
                       child: Row(
                         children: [
@@ -197,7 +214,8 @@ class _BookingScreenState extends State<BookingScreen> {
                       decoration: BoxDecoration(
                         color: Colors.white,
                         borderRadius: BorderRadius.circular(12),
-                        border: Border.all(color: Colors.grey.shade300),
+                        border:
+                            Border.all(color: Colors.grey.shade300),
                       ),
                       child: Row(
                         children: [
@@ -222,7 +240,8 @@ class _BookingScreenState extends State<BookingScreen> {
             ),
             const SizedBox(height: 20),
             const Text('Additional Notes',
-                style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+                style: TextStyle(
+                    fontSize: 16, fontWeight: FontWeight.bold)),
             const SizedBox(height: 12),
             TextField(
               controller: _notesController,
@@ -248,9 +267,11 @@ class _BookingScreenState extends State<BookingScreen> {
                       borderRadius: BorderRadius.circular(12)),
                 ),
                 child: _isLoading
-                    ? const CircularProgressIndicator(color: Colors.white)
+                    ? const CircularProgressIndicator(
+                        color: Colors.white)
                     : const Text('Confirm Booking',
-                        style: TextStyle(fontSize: 16, color: Colors.white)),
+                        style: TextStyle(
+                            fontSize: 16, color: Colors.white)),
               ),
             ),
           ],

@@ -5,6 +5,7 @@ import '../auth/login_screen.dart';
 import 'client_bookings_screen.dart';
 import 'recommendations_screen.dart';
 import 'provider_list_screen.dart';
+import 'booking_screen.dart';
 import '../../widgets/notification_bell.dart';
 
 class ClientHomeScreen extends StatelessWidget {
@@ -28,7 +29,8 @@ class ClientHomeScreen extends StatelessWidget {
       appBar: AppBar(
         backgroundColor: const Color(0xFF2563EB),
         title: const Text('ServiceConnect',
-            style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+            style: TextStyle(
+                color: Colors.white, fontWeight: FontWeight.bold)),
         actions: [
           IconButton(
             icon: const Icon(Icons.auto_awesome, color: Colors.white),
@@ -49,7 +51,8 @@ class ClientHomeScreen extends StatelessWidget {
               await FirebaseAuth.instance.signOut();
               if (context.mounted) {
                 Navigator.pushReplacement(context,
-                    MaterialPageRoute(builder: (_) => const LoginScreen()));
+                    MaterialPageRoute(
+                        builder: (_) => const LoginScreen()));
               }
             },
           ),
@@ -75,7 +78,8 @@ class ClientHomeScreen extends StatelessWidget {
                     .doc(user?.uid)
                     .get(),
                 builder: (context, snapshot) {
-                  final name = snapshot.data?.get('name') ?? 'there';
+                  final name =
+                      snapshot.data?.get('name') ?? 'there';
                   return Text('Hello, $name 👋',
                       style: const TextStyle(
                           color: Colors.white,
@@ -87,13 +91,15 @@ class ClientHomeScreen extends StatelessWidget {
             const Padding(
               padding: EdgeInsets.fromLTRB(20, 24, 20, 12),
               child: Text('What do you need help with?',
-                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+                  style: TextStyle(
+                      fontSize: 18, fontWeight: FontWeight.bold)),
             ),
             GridView.builder(
               shrinkWrap: true,
               physics: const NeverScrollableScrollPhysics(),
               padding: const EdgeInsets.symmetric(horizontal: 20),
-              gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+              gridDelegate:
+                  const SliverGridDelegateWithFixedCrossAxisCount(
                 crossAxisCount: 3,
                 crossAxisSpacing: 12,
                 mainAxisSpacing: 12,
@@ -106,8 +112,8 @@ class ClientHomeScreen extends StatelessWidget {
                   onTap: () => Navigator.push(
                       context,
                       MaterialPageRoute(
-                          builder: (_) =>
-                              ProviderListScreen(category: cat['label']))),
+                          builder: (_) => ProviderListScreen(
+                              category: cat['label']))),
                   child: Container(
                     decoration: BoxDecoration(
                       color: Colors.white,
@@ -139,24 +145,23 @@ class ClientHomeScreen extends StatelessWidget {
             ),
             const Padding(
               padding: EdgeInsets.fromLTRB(20, 24, 20, 12),
-              child: Text('All Providers',
-                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+              child: Text('All Services',
+                  style: TextStyle(
+                      fontSize: 18, fontWeight: FontWeight.bold)),
             ),
-            StreamBuilder<QuerySnapshot>(
-              stream: FirebaseFirestore.instance
-                  .collection('providers')
-                  .where('isVerified', isEqualTo: true)
-                  .snapshots(),
+            FutureBuilder<List<Map<String, dynamic>>>(
+              future: _fetchAllServices(),
               builder: (context, snapshot) {
                 if (!snapshot.hasData) {
-                  return const Center(child: CircularProgressIndicator());
+                  return const Center(
+                      child: CircularProgressIndicator());
                 }
-                final providers = snapshot.data!.docs;
-                if (providers.isEmpty) {
+                final services = snapshot.data!;
+                if (services.isEmpty) {
                   return const Center(
                     child: Padding(
                       padding: EdgeInsets.all(20),
-                      child: Text('No providers yet',
+                      child: Text('No services yet',
                           style: TextStyle(color: Colors.grey)),
                     ),
                   );
@@ -165,10 +170,9 @@ class ClientHomeScreen extends StatelessWidget {
                   shrinkWrap: true,
                   physics: const NeverScrollableScrollPhysics(),
                   padding: const EdgeInsets.symmetric(horizontal: 20),
-                  itemCount: providers.length,
+                  itemCount: services.length,
                   itemBuilder: (context, index) {
-                    final data =
-                        providers[index].data() as Map<String, dynamic>;
+                    final data = services[index];
                     return Card(
                       margin: const EdgeInsets.only(bottom: 12),
                       shape: RoundedRectangleBorder(
@@ -178,22 +182,39 @@ class ClientHomeScreen extends StatelessWidget {
                         leading: CircleAvatar(
                           backgroundColor: const Color(0xFF2563EB),
                           child: Text(
-                            (data['name'] ?? 'P')[0].toUpperCase(),
-                            style: const TextStyle(color: Colors.white),
+                            (data['providerName'] ?? 'P')[0]
+                                .toUpperCase(),
+                            style: const TextStyle(
+                                color: Colors.white),
                           ),
                         ),
-                        title: Text(data['name'] ?? 'Provider',
+                        title: Text(data['providerName'] ?? 'Provider',
                             style: const TextStyle(
                                 fontWeight: FontWeight.bold)),
-                        subtitle: Text(data['category'] ?? ''),
+                        subtitle: Text(
+                            '${data['category']} • RM ${data['price']}/hr'),
                         trailing: Row(
                           mainAxisSize: MainAxisSize.min,
                           children: [
                             const Icon(Icons.star,
                                 color: Colors.amber, size: 16),
-                            Text((data['rating'] ?? 0.0)
+                            Text((data['providerRating'] ?? 0.0)
                                 .toStringAsFixed(1)),
                           ],
+                        ),
+                        onTap: () => Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (_) => BookingScreen(
+                              providerId: data['providerId'],
+                              providerName: data['providerName'],
+                              category: data['category'],
+                              price:
+                                  (data['price'] as num).toDouble(),
+                              serviceId: data['serviceId'],
+                              serviceDescription: data['description'],
+                            ),
+                          ),
                         ),
                       ),
                     );
@@ -207,4 +228,35 @@ class ClientHomeScreen extends StatelessWidget {
       ),
     );
   }
+}
+
+Future<List<Map<String, dynamic>>> _fetchAllServices() async {
+  final providersSnap = await FirebaseFirestore.instance
+      .collection('providers')
+      .where('isVerified', isEqualTo: true)
+      .get();
+
+  final List<Map<String, dynamic>> results = [];
+
+  for (final providerDoc in providersSnap.docs) {
+    final providerData = providerDoc.data();
+    final servicesSnap = await FirebaseFirestore.instance
+        .collection('providers')
+        .doc(providerDoc.id)
+        .collection('services')
+        .where('isActive', isEqualTo: true)
+        .get();
+
+    for (final serviceDoc in servicesSnap.docs) {
+      final serviceData = serviceDoc.data();
+      results.add({
+        ...serviceData,
+        'serviceId': serviceDoc.id,
+        'providerId': providerDoc.id,
+        'providerName': providerData['name'] ?? '',
+        'providerRating': providerData['rating'] ?? 0.0,
+      });
+    }
+  }
+  return results;
 }
