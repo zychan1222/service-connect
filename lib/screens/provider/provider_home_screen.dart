@@ -10,6 +10,15 @@ import '../../widgets/notification_bell.dart';
 class ProviderHomeScreen extends StatelessWidget {
   const ProviderHomeScreen({super.key});
 
+  Color _statusColor(String status) {
+    switch (status) {
+      case 'accepted': return Colors.green;
+      case 'declined': return Colors.red;
+      case 'cancelled': return Colors.grey;
+      default: return Colors.orange;
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final user = FirebaseAuth.instance.currentUser;
@@ -19,7 +28,8 @@ class ProviderHomeScreen extends StatelessWidget {
       appBar: AppBar(
         backgroundColor: const Color(0xFF2563EB),
         title: const Text('ServiceConnect',
-            style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+            style: TextStyle(
+                color: Colors.white, fontWeight: FontWeight.bold)),
         actions: [
           const NotificationBell(),
           IconButton(
@@ -54,7 +64,8 @@ class ProviderHomeScreen extends StatelessWidget {
                     .doc(user?.uid)
                     .get(),
                 builder: (context, snapshot) {
-                  final name = snapshot.data?.get('name') ?? 'Provider';
+                  final name =
+                      snapshot.data?.get('name') ?? 'Provider';
                   return Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
@@ -74,7 +85,8 @@ class ProviderHomeScreen extends StatelessWidget {
             const Padding(
               padding: EdgeInsets.fromLTRB(20, 24, 20, 12),
               child: Text('Booking Requests',
-                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+                  style: TextStyle(
+                      fontSize: 18, fontWeight: FontWeight.bold)),
             ),
             Padding(
               padding: const EdgeInsets.all(20),
@@ -82,12 +94,15 @@ class ProviderHomeScreen extends StatelessWidget {
                 width: double.infinity,
                 height: 52,
                 child: ElevatedButton.icon(
-                  onPressed: () => Navigator.push(context,
+                  onPressed: () => Navigator.push(
+                      context,
                       MaterialPageRoute(
-                          builder: (_) => const ProviderServicesScreen())),
+                          builder: (_) =>
+                              const ProviderServicesScreen())),
                   icon: const Icon(Icons.handyman, color: Colors.white),
                   label: const Text('Manage My Services',
-                      style: TextStyle(fontSize: 16, color: Colors.white)),
+                      style:
+                          TextStyle(fontSize: 16, color: Colors.white)),
                   style: ElevatedButton.styleFrom(
                     backgroundColor: const Color(0xFF2563EB),
                     shape: RoundedRectangleBorder(
@@ -102,13 +117,16 @@ class ProviderHomeScreen extends StatelessWidget {
                 width: double.infinity,
                 height: 52,
                 child: OutlinedButton.icon(
-                  onPressed: () => Navigator.push(context,
+                  onPressed: () => Navigator.push(
+                      context,
                       MaterialPageRoute(
-                          builder: (_) => const ProviderReviewsScreen())),
-                  icon: const Icon(Icons.star, color: Color(0xFF2563EB)),
+                          builder: (_) =>
+                              const ProviderReviewsScreen())),
+                  icon: const Icon(Icons.star,
+                      color: Color(0xFF2563EB)),
                   label: const Text('View My Reviews',
-                      style:
-                          TextStyle(color: Color(0xFF2563EB), fontSize: 16)),
+                      style: TextStyle(
+                          color: Color(0xFF2563EB), fontSize: 16)),
                   style: OutlinedButton.styleFrom(
                     side: const BorderSide(color: Color(0xFF2563EB)),
                     shape: RoundedRectangleBorder(
@@ -125,7 +143,8 @@ class ProviderHomeScreen extends StatelessWidget {
                   .snapshots(),
               builder: (context, snapshot) {
                 if (!snapshot.hasData) {
-                  return const Center(child: CircularProgressIndicator());
+                  return const Center(
+                      child: CircularProgressIndicator());
                 }
                 final bookings = snapshot.data!.docs;
                 if (bookings.isEmpty) {
@@ -173,30 +192,26 @@ class ProviderHomeScreen extends StatelessWidget {
                                   padding: const EdgeInsets.symmetric(
                                       horizontal: 10, vertical: 4),
                                   decoration: BoxDecoration(
-                                    color: status == 'pending'
-                                        ? Colors.orange.withOpacity(0.1)
-                                        : status == 'accepted'
-                                            ? Colors.green.withOpacity(0.1)
-                                            : Colors.red.withOpacity(0.1),
-                                    borderRadius: BorderRadius.circular(20),
+                                    color: _statusColor(status)
+                                        .withOpacity(0.1),
+                                    borderRadius:
+                                        BorderRadius.circular(20),
                                   ),
                                   child: Text(status.toUpperCase(),
                                       style: TextStyle(
                                           fontSize: 11,
                                           fontWeight: FontWeight.bold,
-                                          color: status == 'pending'
-                                              ? Colors.orange
-                                              : status == 'accepted'
-                                                  ? Colors.green
-                                                  : Colors.red)),
+                                          color: _statusColor(status))),
                                 ),
                               ],
                             ),
                             const SizedBox(height: 8),
                             Text(data['category'] ?? '',
-                                style: const TextStyle(color: Colors.grey)),
+                                style:
+                                    const TextStyle(color: Colors.grey)),
                             Text('Date: ${data['date'] ?? ''}',
-                                style: const TextStyle(color: Colors.grey)),
+                                style:
+                                    const TextStyle(color: Colors.grey)),
                             if (status == 'pending') ...[
                               const SizedBox(height: 12),
                               Row(
@@ -207,7 +222,8 @@ class ProviderHomeScreen extends StatelessWidget {
                                         await FirebaseFirestore.instance
                                             .collection('bookings')
                                             .doc(bookings[index].id)
-                                            .update({'status': 'accepted'});
+                                            .update(
+                                                {'status': 'accepted'});
                                         await NotificationService
                                             .sendNotification(
                                           toUserId: data['clientId'],
@@ -232,7 +248,8 @@ class ProviderHomeScreen extends StatelessWidget {
                                         await FirebaseFirestore.instance
                                             .collection('bookings')
                                             .doc(bookings[index].id)
-                                            .update({'status': 'declined'});
+                                            .update(
+                                                {'status': 'declined'});
                                         await NotificationService
                                             .sendNotification(
                                           toUserId: data['clientId'],
@@ -249,6 +266,66 @@ class ProviderHomeScreen extends StatelessWidget {
                                     ),
                                   ),
                                 ],
+                              ),
+                            ],
+                            if (status == 'accepted') ...[
+                              const SizedBox(height: 12),
+                              SizedBox(
+                                width: double.infinity,
+                                child: OutlinedButton.icon(
+                                  onPressed: () => showDialog(
+                                    context: context,
+                                    builder: (_) => AlertDialog(
+                                      title: const Text('Cancel Booking?'),
+                                      content: const Text(
+                                          'Are you sure you want to cancel this accepted booking?'),
+                                      actions: [
+                                        TextButton(
+                                          onPressed: () =>
+                                              Navigator.pop(context),
+                                          child: const Text('No'),
+                                        ),
+                                        TextButton(
+                                          onPressed: () async {
+                                            Navigator.pop(context);
+                                            await FirebaseFirestore
+                                                .instance
+                                                .collection('bookings')
+                                                .doc(bookings[index].id)
+                                                .update(
+                                                    {'status': 'cancelled'});
+                                            await NotificationService
+                                                .sendNotification(
+                                              toUserId: data['clientId'],
+                                              title:
+                                                  'Booking Cancelled by Provider',
+                                              body:
+                                                  '${data['providerName'] ?? 'Your provider'} has cancelled the booking on ${data['date']}. Please rebook.',
+                                              type: 'booking_cancelled',
+                                              bookingId:
+                                                  bookings[index].id,
+                                            );
+                                          },
+                                          child: const Text('Yes, Cancel',
+                                              style: TextStyle(
+                                                  color: Colors.red)),
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                  icon: const Icon(Icons.cancel_outlined,
+                                      color: Colors.red),
+                                  label: const Text('Cancel Booking',
+                                      style:
+                                          TextStyle(color: Colors.red)),
+                                  style: OutlinedButton.styleFrom(
+                                    side: const BorderSide(
+                                        color: Colors.red),
+                                    shape: RoundedRectangleBorder(
+                                        borderRadius:
+                                            BorderRadius.circular(10)),
+                                  ),
+                                ),
                               ),
                             ],
                           ],

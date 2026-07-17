@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'review_screen.dart';
+import '../../services/notification_service.dart';
 
 class ClientBookingsScreen extends StatelessWidget {
   const ClientBookingsScreen({super.key});
@@ -10,6 +11,7 @@ class ClientBookingsScreen extends StatelessWidget {
     switch (status) {
       case 'accepted': return Colors.green;
       case 'declined': return Colors.red;
+      case 'cancelled': return Colors.grey;
       default: return Colors.orange;
     }
   }
@@ -73,7 +75,8 @@ class ClientBookingsScreen extends StatelessWidget {
                         children: [
                           Text(data['providerName'] ?? 'Provider',
                               style: const TextStyle(
-                                  fontWeight: FontWeight.bold, fontSize: 16)),
+                                  fontWeight: FontWeight.bold,
+                                  fontSize: 16)),
                           Container(
                             padding: const EdgeInsets.symmetric(
                                 horizontal: 10, vertical: 4),
@@ -127,7 +130,8 @@ class ClientBookingsScreen extends StatelessWidget {
                             style: const TextStyle(
                                 color: Colors.grey, fontSize: 13)),
                       ],
-                      if (status == 'accepted' && (data['reviewed'] != true)) ...[
+                      if (status == 'accepted' &&
+                          (data['reviewed'] != true)) ...[
                         const SizedBox(height: 12),
                         SizedBox(
                           width: double.infinity,
@@ -142,11 +146,64 @@ class ClientBookingsScreen extends StatelessWidget {
                                 ),
                               ),
                             ),
-                            icon: const Icon(Icons.star, color: Colors.white, size: 16),
+                            icon: const Icon(Icons.star,
+                                color: Colors.white, size: 16),
                             label: const Text('Leave a Review',
                                 style: TextStyle(color: Colors.white)),
                             style: ElevatedButton.styleFrom(
                               backgroundColor: Colors.amber[700],
+                              shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(10)),
+                            ),
+                          ),
+                        ),
+                      ],
+                      if (status == 'pending') ...[
+                        const SizedBox(height: 12),
+                        SizedBox(
+                          width: double.infinity,
+                          child: OutlinedButton.icon(
+                            onPressed: () => showDialog(
+                              context: context,
+                              builder: (_) => AlertDialog(
+                                title: const Text('Cancel Booking?'),
+                                content: const Text(
+                                    'Are you sure you want to cancel this booking?'),
+                                actions: [
+                                  TextButton(
+                                    onPressed: () => Navigator.pop(context),
+                                    child: const Text('No'),
+                                  ),
+                                  TextButton(
+                                    onPressed: () async {
+                                      Navigator.pop(context);
+                                      await FirebaseFirestore.instance
+                                          .collection('bookings')
+                                          .doc(bookings[index].id)
+                                          .update({'status': 'cancelled'});
+                                      await NotificationService
+                                          .sendNotification(
+                                        toUserId: data['providerId'],
+                                        title: 'Booking Cancelled',
+                                        body:
+                                            '${data['clientName']} has cancelled their booking on ${data['date']}',
+                                        type: 'booking_cancelled',
+                                        bookingId: bookings[index].id,
+                                      );
+                                    },
+                                    child: const Text('Yes, Cancel',
+                                        style:
+                                            TextStyle(color: Colors.red)),
+                                  ),
+                                ],
+                              ),
+                            ),
+                            icon: const Icon(Icons.cancel_outlined,
+                                color: Colors.red),
+                            label: const Text('Cancel Booking',
+                                style: TextStyle(color: Colors.red)),
+                            style: OutlinedButton.styleFrom(
+                              side: const BorderSide(color: Colors.red),
                               shape: RoundedRectangleBorder(
                                   borderRadius: BorderRadius.circular(10)),
                             ),
