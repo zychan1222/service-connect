@@ -5,35 +5,63 @@ import 'provider_services_screen.dart';
 import 'provider_reviews_screen.dart';
 import '../auth/login_screen.dart';
 import '../../services/notification_service.dart';
-import '../../widgets/notification_bell.dart';
+import '../../screens/notifications_screen.dart';
 
-class ProviderHomeScreen extends StatelessWidget {
+class ProviderHomeScreen extends StatefulWidget {
   const ProviderHomeScreen({super.key});
 
-  Color _statusColor(String status) {
-    switch (status) {
-      case 'accepted': return Colors.green;
-      case 'declined': return Colors.red;
-      case 'cancelled': return Colors.grey;
-      default: return Colors.orange;
-    }
-  }
+  @override
+  State<ProviderHomeScreen> createState() => _ProviderHomeScreenState();
+}
+
+class _ProviderHomeScreenState extends State<ProviderHomeScreen> {
+  int _currentIndex = 0;
+
+  static const _primary = Color(0xFF2563EB);
+  static const _bg = Color(0xFFF7F8FA);
 
   @override
   Widget build(BuildContext context) {
     final user = FirebaseAuth.instance.currentUser;
 
     return Scaffold(
-      backgroundColor: const Color(0xFFF8FAFC),
+      backgroundColor: _bg,
       appBar: AppBar(
-        backgroundColor: const Color(0xFF2563EB),
-        title: const Text('ServiceConnect',
-            style: TextStyle(
-                color: Colors.white, fontWeight: FontWeight.bold)),
+        backgroundColor: _primary,
+        elevation: 0,
+        title: Row(
+          children: [
+            Container(
+              width: 32,
+              height: 32,
+              decoration: BoxDecoration(
+                color: Colors.white.withOpacity(0.2),
+                borderRadius: BorderRadius.circular(9),
+              ),
+              child: const Icon(Icons.handyman_rounded,
+                  color: Colors.white, size: 17),
+            ),
+            const SizedBox(width: 10),
+            const Text('ServiceConnect',
+                style: TextStyle(
+                    color: Colors.white,
+                    fontSize: 16,
+                    fontWeight: FontWeight.w700,
+                    letterSpacing: -0.3)),
+          ],
+        ),
         actions: [
-          const NotificationBell(),
           IconButton(
-            icon: const Icon(Icons.logout, color: Colors.white),
+            icon: Container(
+              width: 34,
+              height: 34,
+              decoration: BoxDecoration(
+                color: Colors.white.withOpacity(0.15),
+                borderRadius: BorderRadius.circular(10),
+              ),
+              child: const Icon(Icons.logout_rounded,
+                  color: Colors.white, size: 17),
+            ),
             onPressed: () async {
               await FirebaseAuth.instance.signOut();
               if (context.mounted) {
@@ -42,303 +70,593 @@ class ProviderHomeScreen extends StatelessWidget {
               }
             },
           ),
+          const SizedBox(width: 8),
         ],
       ),
-      body: SingleChildScrollView(
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Container(
-              width: double.infinity,
-              padding: const EdgeInsets.all(24),
-              decoration: const BoxDecoration(
-                color: Color(0xFF2563EB),
-                borderRadius: BorderRadius.only(
-                  bottomLeft: Radius.circular(24),
-                  bottomRight: Radius.circular(24),
-                ),
+      body: IndexedStack(
+        index: _currentIndex,
+        children: [
+          _BookingsTab(user: user),
+          const ProviderServicesScreen(),
+          const ProviderReviewsScreen(),
+          const NotificationsScreen(),
+        ],
+      ),
+      bottomNavigationBar: _buildBottomNav(user),
+    );
+  }
+
+  Widget _buildBottomNav(user) {
+    return Container(
+      decoration: BoxDecoration(
+        color: Colors.white,
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.08),
+            blurRadius: 20,
+            offset: const Offset(0, -4),
+          ),
+        ],
+      ),
+      child: SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
+          child: Row(
+            children: [
+              _navItem(
+                index: 0,
+                icon: Icons.home_rounded,
+                label: 'Home',
               ),
-              child: FutureBuilder<DocumentSnapshot>(
-                future: FirebaseFirestore.instance
-                    .collection('users')
-                    .doc(user?.uid)
-                    .get(),
+              _navItem(
+                index: 1,
+                icon: Icons.handyman_rounded,
+                label: 'Services',
+              ),
+              _navItem(
+                index: 2,
+                icon: Icons.star_rounded,
+                label: 'Reviews',
+              ),
+              _navItemWithBadge(
+                index: 3,
+                icon: Icons.notifications_rounded,
+                label: 'Notifications',
+                userId: user?.uid ?? '',
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _navItem({
+    required int index,
+    required IconData icon,
+    required String label,
+  }) {
+    final isSelected = _currentIndex == index;
+    return Expanded(
+      child: GestureDetector(
+        onTap: () => setState(() => _currentIndex = index),
+        behavior: HitTestBehavior.opaque,
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 200),
+          padding: const EdgeInsets.symmetric(vertical: 8),
+          decoration: BoxDecoration(
+            color: isSelected
+                ? const Color(0xFF2563EB).withOpacity(0.08)
+                : Colors.transparent,
+            borderRadius: BorderRadius.circular(12),
+          ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(icon,
+                  color: isSelected
+                      ? const Color(0xFF2563EB)
+                      : const Color(0xFF94A3B8),
+                  size: 22),
+              const SizedBox(height: 4),
+              Text(label,
+                  style: TextStyle(
+                      fontSize: 11,
+                      fontWeight: isSelected
+                          ? FontWeight.w700
+                          : FontWeight.w500,
+                      color: isSelected
+                          ? const Color(0xFF2563EB)
+                          : const Color(0xFF94A3B8))),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _navItemWithBadge({
+    required int index,
+    required IconData icon,
+    required String label,
+    required String userId,
+  }) {
+    final isSelected = _currentIndex == index;
+    return Expanded(
+      child: GestureDetector(
+        onTap: () => setState(() => _currentIndex = index),
+        behavior: HitTestBehavior.opaque,
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 200),
+          padding: const EdgeInsets.symmetric(vertical: 8),
+          decoration: BoxDecoration(
+            color: isSelected
+                ? const Color(0xFF2563EB).withOpacity(0.08)
+                : Colors.transparent,
+            borderRadius: BorderRadius.circular(12),
+          ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              StreamBuilder<QuerySnapshot>(
+                stream: FirebaseFirestore.instance
+                    .collection('notifications')
+                    .where('toUserId', isEqualTo: userId)
+                    .where('isRead', isEqualTo: false)
+                    .snapshots(),
                 builder: (context, snapshot) {
-                  final name =
-                      snapshot.data?.get('name') ?? 'Provider';
-                  return Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
+                  final count = snapshot.data?.docs.length ?? 0;
+                  return Stack(
+                    clipBehavior: Clip.none,
                     children: [
-                      Text('Welcome, $name 👋',
-                          style: const TextStyle(
-                              color: Colors.white,
-                              fontSize: 22,
-                              fontWeight: FontWeight.bold)),
-                      const SizedBox(height: 4),
-                      const Text('Manage your services below',
-                          style: TextStyle(color: Colors.white70)),
+                      Icon(icon,
+                          color: isSelected
+                              ? const Color(0xFF2563EB)
+                              : const Color(0xFF94A3B8),
+                          size: 22),
+                      if (count > 0)
+                        Positioned(
+                          right: -4,
+                          top: -4,
+                          child: Container(
+                            width: 16,
+                            height: 16,
+                            decoration: const BoxDecoration(
+                              color: Colors.red,
+                              shape: BoxShape.circle,
+                            ),
+                            child: Center(
+                              child: Text(
+                                count > 9 ? '9+' : '$count',
+                                style: const TextStyle(
+                                    color: Colors.white,
+                                    fontSize: 9,
+                                    fontWeight: FontWeight.w700),
+                              ),
+                            ),
+                          ),
+                        ),
                     ],
                   );
                 },
               ),
-            ),
-            const Padding(
-              padding: EdgeInsets.fromLTRB(20, 24, 20, 12),
-              child: Text('Booking Requests',
+              const SizedBox(height: 4),
+              Text(label,
                   style: TextStyle(
-                      fontSize: 18, fontWeight: FontWeight.bold)),
-            ),
-            Padding(
-              padding: const EdgeInsets.all(20),
-              child: SizedBox(
-                width: double.infinity,
-                height: 52,
-                child: ElevatedButton.icon(
-                  onPressed: () => Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                          builder: (_) =>
-                              const ProviderServicesScreen())),
-                  icon: const Icon(Icons.handyman, color: Colors.white),
-                  label: const Text('Manage My Services',
-                      style:
-                          TextStyle(fontSize: 16, color: Colors.white)),
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: const Color(0xFF2563EB),
-                    shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(12)),
-                  ),
-                ),
+                      fontSize: 11,
+                      fontWeight: isSelected
+                          ? FontWeight.w700
+                          : FontWeight.w500,
+                      color: isSelected
+                          ? const Color(0xFF2563EB)
+                          : const Color(0xFF94A3B8))),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _BookingsTab extends StatelessWidget {
+  final user;
+  const _BookingsTab({required this.user});
+
+  static const _primary = Color(0xFF2563EB);
+  static const _bg = Color(0xFFF7F8FA);
+  static const _textPrimary = Color(0xFF0F172A);
+  static const _textSecondary = Color(0xFF64748B);
+
+  Color _statusColor(String status) {
+    switch (status) {
+      case 'accepted': return const Color(0xFF10B981);
+      case 'declined': return Colors.red;
+      case 'cancelled': return Colors.grey;
+      default: return const Color(0xFFF59E0B);
+    }
+  }
+
+  Color _statusBg(String status) {
+    switch (status) {
+      case 'accepted': return const Color(0xFFECFDF5);
+      case 'declined': return const Color(0xFFFEF2F2);
+      case 'cancelled': return const Color(0xFFF1F5F9);
+      default: return const Color(0xFFFFFBEB);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return SingleChildScrollView(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // Hero header
+          Container(
+            width: double.infinity,
+            padding: const EdgeInsets.fromLTRB(24, 24, 24, 28),
+            decoration: const BoxDecoration(
+              color: _primary,
+              borderRadius: BorderRadius.only(
+                bottomLeft: Radius.circular(28),
+                bottomRight: Radius.circular(28),
               ),
             ),
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 20),
-              child: SizedBox(
-                width: double.infinity,
-                height: 52,
-                child: OutlinedButton.icon(
-                  onPressed: () => Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                          builder: (_) =>
-                              const ProviderReviewsScreen())),
-                  icon: const Icon(Icons.star,
-                      color: Color(0xFF2563EB)),
-                  label: const Text('View My Reviews',
-                      style: TextStyle(
-                          color: Color(0xFF2563EB), fontSize: 16)),
-                  style: OutlinedButton.styleFrom(
-                    side: const BorderSide(color: Color(0xFF2563EB)),
-                    shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(12)),
-                  ),
-                ),
-              ),
-            ),
-            const SizedBox(height: 12),
-            StreamBuilder<QuerySnapshot>(
-              stream: FirebaseFirestore.instance
-                  .collection('bookings')
-                  .where('providerId', isEqualTo: user?.uid)
-                  .snapshots(),
+            child: FutureBuilder<DocumentSnapshot>(
+              future: FirebaseFirestore.instance
+                  .collection('users')
+                  .doc(user?.uid)
+                  .get(),
               builder: (context, snapshot) {
-                if (!snapshot.hasData) {
-                  return const Center(
-                      child: CircularProgressIndicator());
-                }
-                final bookings = snapshot.data!.docs;
-                if (bookings.isEmpty) {
-                  return const Center(
+                final name = snapshot.data?.get('name') ?? 'Provider';
+                return Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Welcome, $name',
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontSize: 28,
+                        fontWeight: FontWeight.w800,
+                        letterSpacing: -0.8,
+                        height: 1.2,
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                    const Text(
+                      'Manage your bookings below.',
+                      style:
+                          TextStyle(color: Colors.white70, fontSize: 14),
+                    ),
+                  ],
+                );
+              },
+            ),
+          ),
+
+          const SizedBox(height: 28),
+
+          const Padding(
+            padding: EdgeInsets.symmetric(horizontal: 24),
+            child: Text('Booking Requests',
+                style: TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.w700,
+                    color: _textPrimary,
+                    letterSpacing: -0.3)),
+          ),
+          const SizedBox(height: 14),
+
+          StreamBuilder<QuerySnapshot>(
+            stream: FirebaseFirestore.instance
+                .collection('bookings')
+                .where('providerId', isEqualTo: user?.uid)
+                .snapshots(),
+            builder: (context, snapshot) {
+              if (!snapshot.hasData) {
+                return const Padding(
+                  padding: EdgeInsets.all(32),
+                  child: Center(
+                      child:
+                          CircularProgressIndicator(color: _primary)),
+                );
+              }
+              final bookings = snapshot.data!.docs;
+              if (bookings.isEmpty) {
+                return Center(
+                  child: Padding(
+                    padding: const EdgeInsets.all(32),
+                    child: Column(
+                      children: [
+                        Container(
+                          width: 64,
+                          height: 64,
+                          decoration: BoxDecoration(
+                            color: _primary.withOpacity(0.08),
+                            borderRadius: BorderRadius.circular(20),
+                          ),
+                          child: const Icon(Icons.inbox_rounded,
+                              color: _primary, size: 32),
+                        ),
+                        const SizedBox(height: 16),
+                        const Text('No bookings yet',
+                            style: TextStyle(
+                                color: _textPrimary,
+                                fontWeight: FontWeight.w600,
+                                fontSize: 15)),
+                        const SizedBox(height: 4),
+                        const Text(
+                            'Bookings will appear here when clients request your services',
+                            textAlign: TextAlign.center,
+                            style: TextStyle(
+                                color: _textSecondary, fontSize: 13)),
+                      ],
+                    ),
+                  ),
+                );
+              }
+              return ListView.builder(
+                shrinkWrap: true,
+                physics: const NeverScrollableScrollPhysics(),
+                padding: const EdgeInsets.symmetric(horizontal: 24),
+                itemCount: bookings.length,
+                itemBuilder: (context, index) {
+                  final data =
+                      bookings[index].data() as Map<String, dynamic>;
+                  final status = data['status'] ?? 'pending';
+                  return Container(
+                    margin: const EdgeInsets.only(bottom: 12),
+                    decoration: BoxDecoration(
+                      color: Colors.white,
+                      borderRadius: BorderRadius.circular(16),
+                      boxShadow: [
+                        BoxShadow(
+                          color: Colors.black.withOpacity(0.05),
+                          blurRadius: 12,
+                          offset: const Offset(0, 4),
+                        ),
+                      ],
+                    ),
                     child: Padding(
-                      padding: EdgeInsets.all(32),
+                      padding: const EdgeInsets.all(16),
                       child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          Icon(Icons.inbox, size: 64, color: Colors.grey),
-                          SizedBox(height: 12),
-                          Text('No booking requests yet',
-                              style: TextStyle(color: Colors.grey)),
+                          Row(
+                            mainAxisAlignment:
+                                MainAxisAlignment.spaceBetween,
+                            children: [
+                              Row(
+                                children: [
+                                  Container(
+                                    width: 40,
+                                    height: 40,
+                                    decoration: BoxDecoration(
+                                      color: _primary.withOpacity(0.1),
+                                      borderRadius:
+                                          BorderRadius.circular(12),
+                                    ),
+                                    child: Center(
+                                      child: Text(
+                                        (data['clientName'] ?? 'C')[0]
+                                            .toUpperCase(),
+                                        style: const TextStyle(
+                                            color: _primary,
+                                            fontWeight: FontWeight.w700,
+                                            fontSize: 16),
+                                      ),
+                                    ),
+                                  ),
+                                  const SizedBox(width: 12),
+                                  Column(
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.start,
+                                    children: [
+                                      Text(
+                                          data['clientName'] ?? 'Client',
+                                          style: const TextStyle(
+                                              fontWeight: FontWeight.w700,
+                                              fontSize: 14,
+                                              color: _textPrimary)),
+                                      Text(data['category'] ?? '',
+                                          style: const TextStyle(
+                                              color: _textSecondary,
+                                              fontSize: 12)),
+                                    ],
+                                  ),
+                                ],
+                              ),
+                              Container(
+                                padding: const EdgeInsets.symmetric(
+                                    horizontal: 10, vertical: 5),
+                                decoration: BoxDecoration(
+                                  color: _statusBg(status),
+                                  borderRadius: BorderRadius.circular(20),
+                                ),
+                                child: Text(status.toUpperCase(),
+                                    style: TextStyle(
+                                        fontSize: 10,
+                                        fontWeight: FontWeight.w700,
+                                        color: _statusColor(status),
+                                        letterSpacing: 0.5)),
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: 12),
+                          Container(
+                            padding: const EdgeInsets.all(12),
+                            decoration: BoxDecoration(
+                              color: _bg,
+                              borderRadius: BorderRadius.circular(10),
+                            ),
+                            child: Row(
+                              children: [
+                                const Icon(
+                                    Icons.calendar_today_rounded,
+                                    size: 14,
+                                    color: _textSecondary),
+                                const SizedBox(width: 6),
+                                Text(data['date'] ?? '',
+                                    style: const TextStyle(
+                                        color: _textSecondary,
+                                        fontSize: 13)),
+                                const SizedBox(width: 16),
+                                const Icon(Icons.access_time_rounded,
+                                    size: 14, color: _textSecondary),
+                                const SizedBox(width: 6),
+                                Text(data['time'] ?? '',
+                                    style: const TextStyle(
+                                        color: _textSecondary,
+                                        fontSize: 13)),
+                              ],
+                            ),
+                          ),
+                          if (status == 'pending') ...[
+                            const SizedBox(height: 12),
+                            Row(
+                              children: [
+                                Expanded(
+                                  child: ElevatedButton(
+                                    onPressed: () async {
+                                      await FirebaseFirestore.instance
+                                          .collection('bookings')
+                                          .doc(bookings[index].id)
+                                          .update({'status': 'accepted'});
+                                      await NotificationService
+                                          .sendNotification(
+                                        toUserId: data['clientId'],
+                                        title: 'Booking Accepted',
+                                        body:
+                                            '${data['providerName'] ?? 'Your provider'} has accepted your booking on ${data['date']}',
+                                        type: 'booking_accepted',
+                                        bookingId: bookings[index].id,
+                                      );
+                                    },
+                                    style: ElevatedButton.styleFrom(
+                                      backgroundColor:
+                                          const Color(0xFF10B981),
+                                      elevation: 0,
+                                      shape: RoundedRectangleBorder(
+                                          borderRadius:
+                                              BorderRadius.circular(10)),
+                                    ),
+                                    child: const Text('Accept',
+                                        style: TextStyle(
+                                            color: Colors.white,
+                                            fontWeight: FontWeight.w600)),
+                                  ),
+                                ),
+                                const SizedBox(width: 8),
+                                Expanded(
+                                  child: OutlinedButton(
+                                    onPressed: () async {
+                                      await FirebaseFirestore.instance
+                                          .collection('bookings')
+                                          .doc(bookings[index].id)
+                                          .update({'status': 'declined'});
+                                      await NotificationService
+                                          .sendNotification(
+                                        toUserId: data['clientId'],
+                                        title: 'Booking Declined',
+                                        body:
+                                            '${data['providerName'] ?? 'Your provider'} is unavailable on ${data['date']}.',
+                                        type: 'booking_declined',
+                                        bookingId: bookings[index].id,
+                                      );
+                                    },
+                                    style: OutlinedButton.styleFrom(
+                                      foregroundColor: Colors.red,
+                                      side: const BorderSide(
+                                          color: Color(0xFFE2E8F0)),
+                                      shape: RoundedRectangleBorder(
+                                          borderRadius:
+                                              BorderRadius.circular(10)),
+                                    ),
+                                    child: const Text('Decline',
+                                        style: TextStyle(
+                                            fontWeight: FontWeight.w600)),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ],
+                          if (status == 'accepted') ...[
+                            const SizedBox(height: 12),
+                            SizedBox(
+                              width: double.infinity,
+                              child: OutlinedButton.icon(
+                                onPressed: () => showDialog(
+                                  context: context,
+                                  builder: (_) => AlertDialog(
+                                    shape: RoundedRectangleBorder(
+                                        borderRadius:
+                                            BorderRadius.circular(20)),
+                                    title: const Text('Cancel booking?',
+                                        style: TextStyle(
+                                            fontWeight: FontWeight.w700)),
+                                    content: const Text(
+                                        'This will notify the client and cannot be undone.'),
+                                    actions: [
+                                      TextButton(
+                                        onPressed: () =>
+                                            Navigator.pop(context),
+                                        child: const Text('Keep it'),
+                                      ),
+                                      TextButton(
+                                        onPressed: () async {
+                                          Navigator.pop(context);
+                                          await FirebaseFirestore.instance
+                                              .collection('bookings')
+                                              .doc(bookings[index].id)
+                                              .update(
+                                                  {'status': 'cancelled'});
+                                          await NotificationService
+                                              .sendNotification(
+                                            toUserId: data['clientId'],
+                                            title:
+                                                'Booking Cancelled by Provider',
+                                            body:
+                                                '${data['providerName'] ?? 'Your provider'} has cancelled the booking on ${data['date']}.',
+                                            type: 'booking_cancelled',
+                                            bookingId: bookings[index].id,
+                                          );
+                                        },
+                                        child: const Text(
+                                            'Cancel booking',
+                                            style: TextStyle(
+                                                color: Colors.red,
+                                                fontWeight:
+                                                    FontWeight.w600)),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                                icon: const Icon(Icons.cancel_outlined,
+                                    color: Colors.red, size: 16),
+                                label: const Text('Cancel Booking',
+                                    style: TextStyle(
+                                        color: Colors.red,
+                                        fontWeight: FontWeight.w600)),
+                                style: OutlinedButton.styleFrom(
+                                  side: const BorderSide(
+                                      color: Color(0xFFE2E8F0)),
+                                  shape: RoundedRectangleBorder(
+                                      borderRadius:
+                                          BorderRadius.circular(10)),
+                                ),
+                              ),
+                            ),
+                          ],
                         ],
                       ),
                     ),
                   );
-                }
-                return ListView.builder(
-                  shrinkWrap: true,
-                  physics: const NeverScrollableScrollPhysics(),
-                  padding: const EdgeInsets.symmetric(horizontal: 20),
-                  itemCount: bookings.length,
-                  itemBuilder: (context, index) {
-                    final data =
-                        bookings[index].data() as Map<String, dynamic>;
-                    final status = data['status'] ?? 'pending';
-                    return Card(
-                      margin: const EdgeInsets.only(bottom: 12),
-                      shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(16)),
-                      child: Padding(
-                        padding: const EdgeInsets.all(16),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Row(
-                              mainAxisAlignment:
-                                  MainAxisAlignment.spaceBetween,
-                              children: [
-                                Text(data['clientName'] ?? 'Client',
-                                    style: const TextStyle(
-                                        fontWeight: FontWeight.bold,
-                                        fontSize: 16)),
-                                Container(
-                                  padding: const EdgeInsets.symmetric(
-                                      horizontal: 10, vertical: 4),
-                                  decoration: BoxDecoration(
-                                    color: _statusColor(status)
-                                        .withOpacity(0.1),
-                                    borderRadius:
-                                        BorderRadius.circular(20),
-                                  ),
-                                  child: Text(status.toUpperCase(),
-                                      style: TextStyle(
-                                          fontSize: 11,
-                                          fontWeight: FontWeight.bold,
-                                          color: _statusColor(status))),
-                                ),
-                              ],
-                            ),
-                            const SizedBox(height: 8),
-                            Text(data['category'] ?? '',
-                                style:
-                                    const TextStyle(color: Colors.grey)),
-                            Text('Date: ${data['date'] ?? ''}',
-                                style:
-                                    const TextStyle(color: Colors.grey)),
-                            if (status == 'pending') ...[
-                              const SizedBox(height: 12),
-                              Row(
-                                children: [
-                                  Expanded(
-                                    child: ElevatedButton(
-                                      onPressed: () async {
-                                        await FirebaseFirestore.instance
-                                            .collection('bookings')
-                                            .doc(bookings[index].id)
-                                            .update(
-                                                {'status': 'accepted'});
-                                        await NotificationService
-                                            .sendNotification(
-                                          toUserId: data['clientId'],
-                                          title: 'Booking Accepted! ✅',
-                                          body:
-                                              '${data['providerName'] ?? 'Your provider'} has accepted your booking on ${data['date']}',
-                                          type: 'booking_accepted',
-                                          bookingId: bookings[index].id,
-                                        );
-                                      },
-                                      style: ElevatedButton.styleFrom(
-                                          backgroundColor: Colors.green),
-                                      child: const Text('Accept',
-                                          style: TextStyle(
-                                              color: Colors.white)),
-                                    ),
-                                  ),
-                                  const SizedBox(width: 8),
-                                  Expanded(
-                                    child: OutlinedButton(
-                                      onPressed: () async {
-                                        await FirebaseFirestore.instance
-                                            .collection('bookings')
-                                            .doc(bookings[index].id)
-                                            .update(
-                                                {'status': 'declined'});
-                                        await NotificationService
-                                            .sendNotification(
-                                          toUserId: data['clientId'],
-                                          title: 'Booking Declined ❌',
-                                          body:
-                                              '${data['providerName'] ?? 'Your provider'} is unavailable on ${data['date']}. Please try another provider.',
-                                          type: 'booking_declined',
-                                          bookingId: bookings[index].id,
-                                        );
-                                      },
-                                      style: OutlinedButton.styleFrom(
-                                          foregroundColor: Colors.red),
-                                      child: const Text('Decline'),
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            ],
-                            if (status == 'accepted') ...[
-                              const SizedBox(height: 12),
-                              SizedBox(
-                                width: double.infinity,
-                                child: OutlinedButton.icon(
-                                  onPressed: () => showDialog(
-                                    context: context,
-                                    builder: (_) => AlertDialog(
-                                      title: const Text('Cancel Booking?'),
-                                      content: const Text(
-                                          'Are you sure you want to cancel this accepted booking?'),
-                                      actions: [
-                                        TextButton(
-                                          onPressed: () =>
-                                              Navigator.pop(context),
-                                          child: const Text('No'),
-                                        ),
-                                        TextButton(
-                                          onPressed: () async {
-                                            Navigator.pop(context);
-                                            await FirebaseFirestore
-                                                .instance
-                                                .collection('bookings')
-                                                .doc(bookings[index].id)
-                                                .update(
-                                                    {'status': 'cancelled'});
-                                            await NotificationService
-                                                .sendNotification(
-                                              toUserId: data['clientId'],
-                                              title:
-                                                  'Booking Cancelled by Provider',
-                                              body:
-                                                  '${data['providerName'] ?? 'Your provider'} has cancelled the booking on ${data['date']}. Please rebook.',
-                                              type: 'booking_cancelled',
-                                              bookingId:
-                                                  bookings[index].id,
-                                            );
-                                          },
-                                          child: const Text('Yes, Cancel',
-                                              style: TextStyle(
-                                                  color: Colors.red)),
-                                        ),
-                                      ],
-                                    ),
-                                  ),
-                                  icon: const Icon(Icons.cancel_outlined,
-                                      color: Colors.red),
-                                  label: const Text('Cancel Booking',
-                                      style:
-                                          TextStyle(color: Colors.red)),
-                                  style: OutlinedButton.styleFrom(
-                                    side: const BorderSide(
-                                        color: Colors.red),
-                                    shape: RoundedRectangleBorder(
-                                        borderRadius:
-                                            BorderRadius.circular(10)),
-                                  ),
-                                ),
-                              ),
-                            ],
-                          ],
-                        ),
-                      ),
-                    );
-                  },
-                );
-              },
-            ),
-            const SizedBox(height: 20),
-          ],
-        ),
+                },
+              );
+            },
+          ),
+          const SizedBox(height: 32),
+        ],
       ),
     );
   }
