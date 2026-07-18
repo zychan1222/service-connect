@@ -7,12 +7,26 @@ import '../../services/notification_service.dart';
 class ClientBookingsScreen extends StatelessWidget {
   const ClientBookingsScreen({super.key});
 
+  static const _primary = Color(0xFF2563EB);
+  static const _bg = Color(0xFFF7F8FA);
+  static const _textPrimary = Color(0xFF0F172A);
+  static const _textSecondary = Color(0xFF64748B);
+
   Color _statusColor(String status) {
     switch (status) {
-      case 'accepted': return Colors.green;
+      case 'accepted': return const Color(0xFF10B981);
       case 'declined': return Colors.red;
       case 'cancelled': return Colors.grey;
-      default: return Colors.orange;
+      default: return const Color(0xFFF59E0B);
+    }
+  }
+
+  Color _statusBg(String status) {
+    switch (status) {
+      case 'accepted': return const Color(0xFFECFDF5);
+      case 'declined': return const Color(0xFFFEF2F2);
+      case 'cancelled': return const Color(0xFFF1F5F9);
+      default: return const Color(0xFFFFFBEB);
     }
   }
 
@@ -21,11 +35,15 @@ class ClientBookingsScreen extends StatelessWidget {
     final user = FirebaseAuth.instance.currentUser!;
 
     return Scaffold(
-      backgroundColor: const Color(0xFFF8FAFC),
+      backgroundColor: _bg,
       appBar: AppBar(
         title: const Text('My Bookings',
-            style: TextStyle(color: Colors.white)),
-        backgroundColor: const Color(0xFF2563EB),
+            style: TextStyle(
+                color: Colors.white,
+                fontWeight: FontWeight.w600,
+                fontSize: 16)),
+        backgroundColor: _primary,
+        elevation: 0,
         iconTheme: const IconThemeData(color: Colors.white),
       ),
       body: StreamBuilder<QuerySnapshot>(
@@ -36,105 +54,165 @@ class ClientBookingsScreen extends StatelessWidget {
             .snapshots(),
         builder: (context, snapshot) {
           if (!snapshot.hasData) {
-            return const Center(child: CircularProgressIndicator());
+            return const Center(
+                child: CircularProgressIndicator(color: _primary));
           }
           final bookings = snapshot.data!.docs;
           if (bookings.isEmpty) {
-            return const Center(
+            return Center(
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  Icon(Icons.calendar_today, size: 64, color: Colors.grey),
-                  SizedBox(height: 12),
-                  Text('No bookings yet',
-                      style: TextStyle(color: Colors.grey, fontSize: 16)),
-                  SizedBox(height: 4),
-                  Text('Book a service to get started',
-                      style: TextStyle(color: Colors.grey)),
+                  Container(
+                    width: 72,
+                    height: 72,
+                    decoration: BoxDecoration(
+                      color: _primary.withOpacity(0.08),
+                      borderRadius: BorderRadius.circular(20),
+                    ),
+                    child: const Icon(Icons.calendar_month_rounded,
+                        color: _primary, size: 36),
+                  ),
+                  const SizedBox(height: 16),
+                  const Text('No bookings yet',
+                      style: TextStyle(
+                          color: _textPrimary,
+                          fontSize: 16,
+                          fontWeight: FontWeight.w600)),
+                  const SizedBox(height: 4),
+                  const Text('Book a service to get started',
+                      style:
+                          TextStyle(color: _textSecondary, fontSize: 13)),
                 ],
               ),
             );
           }
           return ListView.builder(
-            padding: const EdgeInsets.all(16),
+            padding: const EdgeInsets.all(20),
             itemCount: bookings.length,
             itemBuilder: (context, index) {
-              final data = bookings[index].data() as Map<String, dynamic>;
+              final data =
+                  bookings[index].data() as Map<String, dynamic>;
               final status = data['status'] ?? 'pending';
-              return Card(
-                margin: const EdgeInsets.only(bottom: 12),
-                shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(16)),
+              return Container(
+                margin: const EdgeInsets.only(bottom: 14),
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(20),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black.withOpacity(0.05),
+                      blurRadius: 16,
+                      offset: const Offset(0, 4),
+                    ),
+                  ],
+                ),
                 child: Padding(
-                  padding: const EdgeInsets.all(16),
+                  padding: const EdgeInsets.all(18),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Row(
                         mainAxisAlignment: MainAxisAlignment.spaceBetween,
                         children: [
-                          Text(data['providerName'] ?? 'Provider',
-                              style: const TextStyle(
-                                  fontWeight: FontWeight.bold,
-                                  fontSize: 16)),
+                          Row(
+                            children: [
+                              Container(
+                                width: 42,
+                                height: 42,
+                                decoration: BoxDecoration(
+                                  color: _primary,
+                                  borderRadius: BorderRadius.circular(12),
+                                ),
+                                child: Center(
+                                  child: Text(
+                                    (data['providerName'] ?? 'P')[0]
+                                        .toUpperCase(),
+                                    style: const TextStyle(
+                                        color: Colors.white,
+                                        fontWeight: FontWeight.w700,
+                                        fontSize: 16),
+                                  ),
+                                ),
+                              ),
+                              const SizedBox(width: 12),
+                              Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(data['providerName'] ?? 'Provider',
+                                      style: const TextStyle(
+                                          fontWeight: FontWeight.w700,
+                                          fontSize: 14,
+                                          color: _textPrimary)),
+                                  Text(data['category'] ?? '',
+                                      style: const TextStyle(
+                                          color: _textSecondary,
+                                          fontSize: 12)),
+                                ],
+                              ),
+                            ],
+                          ),
                           Container(
                             padding: const EdgeInsets.symmetric(
-                                horizontal: 10, vertical: 4),
+                                horizontal: 10, vertical: 5),
                             decoration: BoxDecoration(
-                              color: _statusColor(status).withOpacity(0.1),
+                              color: _statusBg(status),
                               borderRadius: BorderRadius.circular(20),
                             ),
                             child: Text(status.toUpperCase(),
                                 style: TextStyle(
-                                    fontSize: 11,
-                                    fontWeight: FontWeight.bold,
-                                    color: _statusColor(status))),
+                                    fontSize: 10,
+                                    fontWeight: FontWeight.w700,
+                                    color: _statusColor(status),
+                                    letterSpacing: 0.5)),
                           ),
                         ],
                       ),
-                      const SizedBox(height: 8),
-                      Row(
-                        children: [
-                          const Icon(Icons.handyman,
-                              size: 14, color: Colors.grey),
-                          const SizedBox(width: 4),
-                          Text(data['category'] ?? '',
-                              style: const TextStyle(color: Colors.grey)),
-                        ],
+
+                      const SizedBox(height: 14),
+
+                      Container(
+                        padding: const EdgeInsets.all(12),
+                        decoration: BoxDecoration(
+                          color: _bg,
+                          borderRadius: BorderRadius.circular(10),
+                        ),
+                        child: Row(
+                          children: [
+                            const Icon(Icons.calendar_today_rounded,
+                                size: 13, color: _textSecondary),
+                            const SizedBox(width: 6),
+                            Text('${data['date']} at ${data['time']}',
+                                style: const TextStyle(
+                                    color: _textSecondary,
+                                    fontSize: 12)),
+                            const Spacer(),
+                            const Icon(Icons.attach_money_rounded,
+                                size: 13, color: _primary),
+                            Text('RM ${data['price']}/hr',
+                                style: const TextStyle(
+                                    color: _primary,
+                                    fontWeight: FontWeight.w700,
+                                    fontSize: 12)),
+                          ],
+                        ),
                       ),
-                      const SizedBox(height: 4),
-                      Row(
-                        children: [
-                          const Icon(Icons.calendar_today,
-                              size: 14, color: Colors.grey),
-                          const SizedBox(width: 4),
-                          Text('${data['date']} at ${data['time']}',
-                              style: const TextStyle(color: Colors.grey)),
-                        ],
-                      ),
-                      const SizedBox(height: 4),
-                      Row(
-                        children: [
-                          const Icon(Icons.attach_money,
-                              size: 14, color: Colors.grey),
-                          const SizedBox(width: 4),
-                          Text('RM ${data['price']}/hr',
-                              style: const TextStyle(
-                                  color: Color(0xFF2563EB),
-                                  fontWeight: FontWeight.w500)),
-                        ],
-                      ),
+
                       if ((data['notes'] ?? '').isNotEmpty) ...[
-                        const SizedBox(height: 8),
-                        Text('Notes: ${data['notes']}',
+                        const SizedBox(height: 10),
+                        Text('Note: ${data['notes']}',
                             style: const TextStyle(
-                                color: Colors.grey, fontSize: 13)),
+                                color: _textSecondary, fontSize: 12),
+                            maxLines: 2,
+                            overflow: TextOverflow.ellipsis),
                       ],
+
                       if (status == 'accepted' &&
                           (data['reviewed'] != true)) ...[
-                        const SizedBox(height: 12),
+                        const SizedBox(height: 14),
                         SizedBox(
                           width: double.infinity,
+                          height: 44,
                           child: ElevatedButton.icon(
                             onPressed: () => Navigator.push(
                               context,
@@ -146,33 +224,44 @@ class ClientBookingsScreen extends StatelessWidget {
                                 ),
                               ),
                             ),
-                            icon: const Icon(Icons.star,
+                            icon: const Icon(Icons.star_rounded,
                                 color: Colors.white, size: 16),
                             label: const Text('Leave a Review',
-                                style: TextStyle(color: Colors.white)),
+                                style: TextStyle(
+                                    color: Colors.white,
+                                    fontWeight: FontWeight.w600)),
                             style: ElevatedButton.styleFrom(
-                              backgroundColor: Colors.amber[700],
+                              backgroundColor: const Color(0xFFF59E0B),
+                              elevation: 0,
                               shape: RoundedRectangleBorder(
-                                  borderRadius: BorderRadius.circular(10)),
+                                  borderRadius: BorderRadius.circular(12)),
                             ),
                           ),
                         ),
                       ],
+
                       if (status == 'pending') ...[
-                        const SizedBox(height: 12),
+                        const SizedBox(height: 14),
                         SizedBox(
                           width: double.infinity,
+                          height: 44,
                           child: OutlinedButton.icon(
                             onPressed: () => showDialog(
                               context: context,
                               builder: (_) => AlertDialog(
-                                title: const Text('Cancel Booking?'),
+                                shape: RoundedRectangleBorder(
+                                    borderRadius:
+                                        BorderRadius.circular(20)),
+                                title: const Text('Cancel booking?',
+                                    style: TextStyle(
+                                        fontWeight: FontWeight.w700)),
                                 content: const Text(
-                                    'Are you sure you want to cancel this booking?'),
+                                    'This will notify the provider and cannot be undone.'),
                                 actions: [
                                   TextButton(
-                                    onPressed: () => Navigator.pop(context),
-                                    child: const Text('No'),
+                                    onPressed: () =>
+                                        Navigator.pop(context),
+                                    child: const Text('Keep it'),
                                   ),
                                   TextButton(
                                     onPressed: () async {
@@ -180,7 +269,8 @@ class ClientBookingsScreen extends StatelessWidget {
                                       await FirebaseFirestore.instance
                                           .collection('bookings')
                                           .doc(bookings[index].id)
-                                          .update({'status': 'cancelled'});
+                                          .update(
+                                              {'status': 'cancelled'});
                                       await NotificationService
                                           .sendNotification(
                                         toUserId: data['providerId'],
@@ -191,21 +281,25 @@ class ClientBookingsScreen extends StatelessWidget {
                                         bookingId: bookings[index].id,
                                       );
                                     },
-                                    child: const Text('Yes, Cancel',
-                                        style:
-                                            TextStyle(color: Colors.red)),
+                                    child: const Text('Cancel booking',
+                                        style: TextStyle(
+                                            color: Colors.red,
+                                            fontWeight: FontWeight.w600)),
                                   ),
                                 ],
                               ),
                             ),
                             icon: const Icon(Icons.cancel_outlined,
-                                color: Colors.red),
+                                color: Colors.red, size: 16),
                             label: const Text('Cancel Booking',
-                                style: TextStyle(color: Colors.red)),
+                                style: TextStyle(
+                                    color: Colors.red,
+                                    fontWeight: FontWeight.w600)),
                             style: OutlinedButton.styleFrom(
-                              side: const BorderSide(color: Colors.red),
+                              side: const BorderSide(
+                                  color: Color(0xFFE2E8F0)),
                               shape: RoundedRectangleBorder(
-                                  borderRadius: BorderRadius.circular(10)),
+                                  borderRadius: BorderRadius.circular(12)),
                             ),
                           ),
                         ),

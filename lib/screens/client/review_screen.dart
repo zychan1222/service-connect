@@ -23,6 +23,12 @@ class _ReviewScreenState extends State<ReviewScreen> {
   int _rating = 0;
   bool _isLoading = false;
 
+  static const _primary = Color(0xFF2563EB);
+  static const _bg = Color(0xFFF7F8FA);
+  static const _textPrimary = Color(0xFF0F172A);
+  static const _textSecondary = Color(0xFF64748B);
+  static const _border = Color(0xFFE2E8F0);
+
   Future<void> _submitReview() async {
     if (_rating == 0) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -37,7 +43,6 @@ class _ReviewScreenState extends State<ReviewScreen> {
           .collection('users').doc(user.uid).get();
       final clientName = userDoc.data()?['name'] ?? 'Client';
 
-      // Save review
       await FirebaseFirestore.instance.collection('reviews').add({
         'providerId': widget.providerId,
         'clientId': user.uid,
@@ -48,7 +53,6 @@ class _ReviewScreenState extends State<ReviewScreen> {
         'createdAt': FieldValue.serverTimestamp(),
       });
 
-      // Update provider average rating
       final reviewsSnap = await FirebaseFirestore.instance
           .collection('reviews')
           .where('providerId', isEqualTo: widget.providerId)
@@ -63,11 +67,10 @@ class _ReviewScreenState extends State<ReviewScreen> {
           .collection('providers')
           .doc(widget.providerId)
           .update({
-            'rating': double.parse(avgRating.toStringAsFixed(1)),
-            'bookingCount': ratings.length,
-          });
+        'rating': double.parse(avgRating.toStringAsFixed(1)),
+        'bookingCount': ratings.length,
+      });
 
-      // Mark booking as reviewed
       await FirebaseFirestore.instance
           .collection('bookings')
           .doc(widget.bookingId)
@@ -75,8 +78,9 @@ class _ReviewScreenState extends State<ReviewScreen> {
 
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Review submitted!'),
-            backgroundColor: Colors.green),
+        const SnackBar(
+            content: Text('Review submitted'),
+            backgroundColor: Color(0xFF10B981)),
       );
       Navigator.pop(context);
     } finally {
@@ -84,108 +88,199 @@ class _ReviewScreenState extends State<ReviewScreen> {
     }
   }
 
+  String get _ratingLabel {
+    switch (_rating) {
+      case 1: return 'Poor';
+      case 2: return 'Fair';
+      case 3: return 'Good';
+      case 4: return 'Very Good';
+      case 5: return 'Excellent';
+      default: return 'Tap a star to rate';
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFFF8FAFC),
+      backgroundColor: _bg,
       appBar: AppBar(
         title: const Text('Leave a Review',
-            style: TextStyle(color: Colors.white)),
-        backgroundColor: const Color(0xFF2563EB),
+            style: TextStyle(
+                color: Colors.white,
+                fontWeight: FontWeight.w600,
+                fontSize: 16)),
+        backgroundColor: _primary,
+        elevation: 0,
         iconTheme: const IconThemeData(color: Colors.white),
       ),
       body: SingleChildScrollView(
         padding: const EdgeInsets.all(24),
         child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Center(
+            // Provider card
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.all(24),
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(20),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withOpacity(0.06),
+                    blurRadius: 16,
+                    offset: const Offset(0, 4),
+                  ),
+                ],
+              ),
               child: Column(
                 children: [
-                  CircleAvatar(
-                    backgroundColor: const Color(0xFF2563EB),
-                    radius: 36,
-                    child: Text(
-                      widget.providerName[0].toUpperCase(),
-                      style: const TextStyle(
-                          color: Colors.white, fontSize: 28),
+                  Container(
+                    width: 64,
+                    height: 64,
+                    decoration: BoxDecoration(
+                      color: _primary,
+                      borderRadius: BorderRadius.circular(18),
+                    ),
+                    child: Center(
+                      child: Text(
+                        widget.providerName[0].toUpperCase(),
+                        style: const TextStyle(
+                            color: Colors.white,
+                            fontSize: 26,
+                            fontWeight: FontWeight.w700),
+                      ),
                     ),
                   ),
-                  const SizedBox(height: 12),
+                  const SizedBox(height: 14),
                   Text(widget.providerName,
                       style: const TextStyle(
-                          fontSize: 18, fontWeight: FontWeight.bold)),
+                          fontSize: 18,
+                          fontWeight: FontWeight.w700,
+                          color: _textPrimary)),
                   const SizedBox(height: 4),
                   const Text('How was your experience?',
-                      style: TextStyle(color: Colors.grey)),
+                      style: TextStyle(
+                          color: _textSecondary, fontSize: 13)),
+
+                  const SizedBox(height: 24),
+
+                  // Star rating
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: List.generate(5, (index) {
+                      return GestureDetector(
+                        onTap: () =>
+                            setState(() => _rating = index + 1),
+                        child: Padding(
+                          padding:
+                              const EdgeInsets.symmetric(horizontal: 6),
+                          child: Icon(
+                            index < _rating
+                                ? Icons.star_rounded
+                                : Icons.star_outline_rounded,
+                            color: Colors.amber,
+                            size: 44,
+                          ),
+                        ),
+                      );
+                    }),
+                  ),
+                  const SizedBox(height: 8),
+                  Text(
+                    _ratingLabel,
+                    style: TextStyle(
+                        color: _rating == 0
+                            ? _textSecondary
+                            : Colors.amber,
+                        fontWeight: FontWeight.w600,
+                        fontSize: 14),
+                  ),
                 ],
               ),
             ),
-            const SizedBox(height: 32),
-            const Text('Your Rating',
-                style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
-            const SizedBox(height: 12),
-            Center(
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: List.generate(5, (index) {
-                  return GestureDetector(
-                    onTap: () => setState(() => _rating = index + 1),
-                    child: Padding(
-                      padding: const EdgeInsets.symmetric(horizontal: 4),
-                      child: Icon(
-                        index < _rating ? Icons.star : Icons.star_border,
-                        color: Colors.amber,
-                        size: 42,
+
+            const SizedBox(height: 20),
+
+            // Review text
+            Container(
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(20),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withOpacity(0.06),
+                    blurRadius: 16,
+                    offset: const Offset(0, 4),
+                  ),
+                ],
+              ),
+              padding: const EdgeInsets.all(20),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Text('Your Review',
+                      style: TextStyle(
+                          fontSize: 14,
+                          fontWeight: FontWeight.w700,
+                          color: _textPrimary)),
+                  const SizedBox(height: 12),
+                  TextField(
+                    controller: _reviewController,
+                    maxLines: 4,
+                    style: const TextStyle(
+                        fontSize: 14, color: _textPrimary),
+                    decoration: InputDecoration(
+                      hintText:
+                          'Share your experience with this provider...',
+                      hintStyle: const TextStyle(
+                          color: _textSecondary, fontSize: 14),
+                      filled: true,
+                      fillColor: _bg,
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(12),
+                        borderSide: const BorderSide(color: _border),
                       ),
+                      enabledBorder: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(12),
+                        borderSide: const BorderSide(color: _border),
+                      ),
+                      focusedBorder: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(12),
+                        borderSide: const BorderSide(
+                            color: _primary, width: 1.5),
+                      ),
+                      contentPadding: const EdgeInsets.all(14),
                     ),
-                  );
-                }),
+                  ),
+                ],
               ),
             ),
-            const SizedBox(height: 8),
-            Center(
-              child: Text(
-                _rating == 0 ? 'Tap to rate' :
-                _rating == 1 ? 'Poor' :
-                _rating == 2 ? 'Fair' :
-                _rating == 3 ? 'Good' :
-                _rating == 4 ? 'Very Good' : 'Excellent!',
-                style: TextStyle(
-                    color: _rating == 0 ? Colors.grey : Colors.amber,
-                    fontWeight: FontWeight.w500),
-              ),
-            ),
+
             const SizedBox(height: 28),
-            const Text('Your Review',
-                style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
-            const SizedBox(height: 12),
-            TextField(
-              controller: _reviewController,
-              maxLines: 4,
-              decoration: InputDecoration(
-                hintText: 'Share your experience with this provider...',
-                border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(12)),
-                filled: true,
-                fillColor: Colors.white,
-              ),
-            ),
-            const SizedBox(height: 32),
+
             SizedBox(
               width: double.infinity,
-              height: 52,
+              height: 54,
               child: ElevatedButton(
                 onPressed: _isLoading ? null : _submitReview,
                 style: ElevatedButton.styleFrom(
-                  backgroundColor: const Color(0xFF2563EB),
+                  backgroundColor: _primary,
+                  elevation: 0,
                   shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(12)),
+                      borderRadius: BorderRadius.circular(14)),
                 ),
                 child: _isLoading
-                    ? const CircularProgressIndicator(color: Colors.white)
+                    ? const SizedBox(
+                        width: 22,
+                        height: 22,
+                        child: CircularProgressIndicator(
+                            color: Colors.white, strokeWidth: 2.5),
+                      )
                     : const Text('Submit Review',
-                        style: TextStyle(fontSize: 16, color: Colors.white)),
+                        style: TextStyle(
+                            fontSize: 16,
+                            fontWeight: FontWeight.w600,
+                            color: Colors.white)),
               ),
             ),
           ],

@@ -11,10 +11,14 @@ class NotificationsScreen extends StatefulWidget {
 }
 
 class _NotificationsScreenState extends State<NotificationsScreen> {
+  static const _primary = Color(0xFF2563EB);
+  static const _bg = Color(0xFFF7F8FA);
+  static const _textPrimary = Color(0xFF0F172A);
+  static const _textSecondary = Color(0xFF64748B);
+
   @override
   void initState() {
     super.initState();
-    // Mark all as read when screen opens
     Future.delayed(const Duration(seconds: 1), () {
       NotificationService.markAllRead();
     });
@@ -22,21 +26,21 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
 
   IconData _getIcon(String type) {
     switch (type) {
-      case 'booking_received': return Icons.calendar_today;
-      case 'booking_accepted': return Icons.check_circle;
-      case 'booking_declined': return Icons.cancel;
+      case 'booking_received': return Icons.calendar_today_rounded;
+      case 'booking_accepted': return Icons.check_circle_rounded;
+      case 'booking_declined': return Icons.cancel_rounded;
       case 'booking_cancelled': return Icons.cancel_outlined;
-      default: return Icons.notifications;
+      default: return Icons.notifications_rounded;
     }
   }
 
   Color _getColor(String type) {
     switch (type) {
-      case 'booking_received': return Colors.blue;
-      case 'booking_accepted': return Colors.green;
+      case 'booking_received': return _primary;
+      case 'booking_accepted': return const Color(0xFF10B981);
       case 'booking_declined': return Colors.red;
-      case 'booking_cancelled': return Colors.orange;
-      default: return Colors.grey;
+      case 'booking_cancelled': return const Color(0xFFF59E0B);
+      default: return _textSecondary;
     }
   }
 
@@ -45,11 +49,15 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
     final user = FirebaseAuth.instance.currentUser!;
 
     return Scaffold(
-      backgroundColor: const Color(0xFFF8FAFC),
+      backgroundColor: _bg,
       appBar: AppBar(
         title: const Text('Notifications',
-            style: TextStyle(color: Colors.white)),
-        backgroundColor: const Color(0xFF2563EB),
+            style: TextStyle(
+                color: Colors.white,
+                fontWeight: FontWeight.w600,
+                fontSize: 16)),
+        backgroundColor: _primary,
+        elevation: 0,
         iconTheme: const IconThemeData(color: Colors.white),
       ),
       body: StreamBuilder<QuerySnapshot>(
@@ -60,25 +68,41 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
             .snapshots(),
         builder: (context, snapshot) {
           if (!snapshot.hasData) {
-            return const Center(child: CircularProgressIndicator());
+            return const Center(
+                child: CircularProgressIndicator(color: _primary));
           }
           final notifications = snapshot.data!.docs;
           if (notifications.isEmpty) {
-            return const Center(
+            return Center(
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  Icon(Icons.notifications_none,
-                      size: 64, color: Colors.grey),
-                  SizedBox(height: 12),
-                  Text('No notifications yet',
-                      style: TextStyle(color: Colors.grey, fontSize: 16)),
+                  Container(
+                    width: 72,
+                    height: 72,
+                    decoration: BoxDecoration(
+                      color: _primary.withOpacity(0.08),
+                      borderRadius: BorderRadius.circular(20),
+                    ),
+                    child: const Icon(Icons.notifications_rounded,
+                        color: _primary, size: 36),
+                  ),
+                  const SizedBox(height: 16),
+                  const Text('No notifications yet',
+                      style: TextStyle(
+                          color: _textPrimary,
+                          fontSize: 15,
+                          fontWeight: FontWeight.w600)),
+                  const SizedBox(height: 4),
+                  const Text('You are all caught up',
+                      style:
+                          TextStyle(color: _textSecondary, fontSize: 13)),
                 ],
               ),
             );
           }
           return ListView.builder(
-            padding: const EdgeInsets.all(16),
+            padding: const EdgeInsets.all(20),
             itemCount: notifications.length,
             itemBuilder: (context, index) {
               final data =
@@ -87,50 +111,71 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
               final type = data['type'] ?? '';
 
               return Container(
-                margin: const EdgeInsets.only(bottom: 8),
+                margin: const EdgeInsets.only(bottom: 10),
+                padding: const EdgeInsets.all(16),
                 decoration: BoxDecoration(
-                  color: isRead ? Colors.white : const Color(0xFF2563EB).withOpacity(0.05),
+                  color: isRead
+                      ? Colors.white
+                      : _primary.withOpacity(0.04),
                   borderRadius: BorderRadius.circular(16),
                   border: Border.all(
                     color: isRead
-                        ? Colors.grey.shade200
-                        : const Color(0xFF2563EB).withOpacity(0.2),
+                        ? const Color(0xFFE2E8F0)
+                        : _primary.withOpacity(0.15),
                   ),
-                ),
-                child: ListTile(
-                  contentPadding: const EdgeInsets.all(16),
-                  leading: Container(
-                    padding: const EdgeInsets.all(10),
-                    decoration: BoxDecoration(
-                      color: _getColor(type).withOpacity(0.1),
-                      shape: BoxShape.circle,
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black.withOpacity(0.04),
+                      blurRadius: 8,
+                      offset: const Offset(0, 2),
                     ),
-                    child: Icon(_getIcon(type),
-                        color: _getColor(type), size: 22),
-                  ),
-                  title: Text(data['title'] ?? '',
-                      style: TextStyle(
-                          fontWeight: isRead
-                              ? FontWeight.normal
-                              : FontWeight.bold)),
-                  subtitle: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      const SizedBox(height: 4),
-                      Text(data['body'] ?? '',
-                          style: const TextStyle(fontSize: 13)),
-                    ],
-                  ),
-                  trailing: isRead
-                      ? null
-                      : Container(
-                          width: 8,
-                          height: 8,
-                          decoration: const BoxDecoration(
-                            color: Color(0xFF2563EB),
-                            shape: BoxShape.circle,
-                          ),
+                  ],
+                ),
+                child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Container(
+                      width: 40,
+                      height: 40,
+                      decoration: BoxDecoration(
+                        color: _getColor(type).withOpacity(0.1),
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      child: Icon(_getIcon(type),
+                          color: _getColor(type), size: 20),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(data['title'] ?? '',
+                              style: TextStyle(
+                                  fontWeight: isRead
+                                      ? FontWeight.w500
+                                      : FontWeight.w700,
+                                  fontSize: 14,
+                                  color: _textPrimary)),
+                          const SizedBox(height: 3),
+                          Text(data['body'] ?? '',
+                              style: const TextStyle(
+                                  color: _textSecondary,
+                                  fontSize: 12,
+                                  height: 1.4)),
+                        ],
+                      ),
+                    ),
+                    if (!isRead)
+                      Container(
+                        width: 8,
+                        height: 8,
+                        margin: const EdgeInsets.only(top: 4, left: 8),
+                        decoration: const BoxDecoration(
+                          color: _primary,
+                          shape: BoxShape.circle,
                         ),
+                      ),
+                  ],
                 ),
               );
             },

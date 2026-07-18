@@ -7,7 +7,8 @@ class RecommendationsScreen extends StatefulWidget {
   const RecommendationsScreen({super.key});
 
   @override
-  State<RecommendationsScreen> createState() => _RecommendationsScreenState();
+  State<RecommendationsScreen> createState() =>
+      _RecommendationsScreenState();
 }
 
 class _RecommendationsScreenState extends State<RecommendationsScreen> {
@@ -15,6 +16,11 @@ class _RecommendationsScreenState extends State<RecommendationsScreen> {
   List<Map<String, dynamic>> _recommended = [];
   List<Map<String, dynamic>> _others = [];
   String _insight = '';
+
+  static const _primary = Color(0xFF2563EB);
+  static const _bg = Color(0xFFF7F8FA);
+  static const _textPrimary = Color(0xFF0F172A);
+  static const _textSecondary = Color(0xFF64748B);
 
   @override
   void initState() {
@@ -25,13 +31,11 @@ class _RecommendationsScreenState extends State<RecommendationsScreen> {
   Future<void> _runMatchingAlgorithm() async {
     final user = FirebaseAuth.instance.currentUser!;
 
-    // Step 1: Get client's booking history
     final bookingsSnap = await FirebaseFirestore.instance
         .collection('bookings')
         .where('clientId', isEqualTo: user.uid)
         .get();
 
-    // Step 2: Count category frequency (behaviour analysis)
     final Map<String, int> categoryCount = {};
     for (final doc in bookingsSnap.docs) {
       final category = doc.data()['category'] as String? ?? '';
@@ -40,7 +44,6 @@ class _RecommendationsScreenState extends State<RecommendationsScreen> {
       }
     }
 
-    // Step 3: Get all verified providers and their services
     final providersSnap = await FirebaseFirestore.instance
         .collection('providers')
         .where('isVerified', isEqualTo: true)
@@ -62,13 +65,9 @@ class _RecommendationsScreenState extends State<RecommendationsScreen> {
         final category = serviceData['category'] as String? ?? '';
         final rating = (providerData['rating'] ?? 0.0).toDouble();
         final bookingCount = (providerData['bookingCount'] ?? 0).toInt();
-
-        // Category match weight
         final categoryWeight = categoryCount.containsKey(category)
             ? (categoryCount[category]! * 10).toDouble()
             : 0.0;
-
-        // Composite score
         final score = (categoryWeight * 0.5) +
             (rating * 10 * 0.3) +
             (bookingCount * 0.2);
@@ -87,26 +86,23 @@ class _RecommendationsScreenState extends State<RecommendationsScreen> {
       }
     }
 
-    // Step 4: Sort by score descending
     scored.sort((a, b) => (b['score'] as double).compareTo(a['score']));
 
-    // Step 5: Split into recommended vs others
     final recommended =
         scored.where((p) => p['isRecommended'] == true).toList();
     final others =
         scored.where((p) => p['isRecommended'] == false).toList();
 
-    // Step 6: Generate insight text
     String insight = '';
     if (categoryCount.isEmpty) {
-      insight = 'Book a service to get personalised recommendations!';
+      insight =
+          'Book a service to start getting personalised recommendations.';
     } else {
       final topCategory = categoryCount.entries
           .reduce((a, b) => a.value > b.value ? a : b)
           .key;
       insight =
-          'Based on your history, you frequently book $topCategory services. '
-          'We\'ve ranked the best providers for you!';
+          'Based on your history, you frequently book $topCategory services. Here are your best matches.';
     }
 
     if (mounted) {
@@ -122,212 +118,290 @@ class _RecommendationsScreenState extends State<RecommendationsScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFFF8FAFC),
+      backgroundColor: _bg,
       appBar: AppBar(
-        title: const Text('Recommended For You',
-            style: TextStyle(color: Colors.white)),
-        backgroundColor: const Color(0xFF2563EB),
+        title: const Text('For You',
+            style: TextStyle(
+                color: Colors.white,
+                fontWeight: FontWeight.w600,
+                fontSize: 16)),
+        backgroundColor: _primary,
+        elevation: 0,
         iconTheme: const IconThemeData(color: Colors.white),
       ),
       body: _isLoading
-          ? const Center(
+          ? Center(
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  CircularProgressIndicator(color: Color(0xFF2563EB)),
-                  SizedBox(height: 16),
-                  Text('Analysing your preferences...',
-                      style: TextStyle(color: Colors.grey)),
+                  Container(
+                    width: 64,
+                    height: 64,
+                    decoration: BoxDecoration(
+                      color: _primary.withOpacity(0.08),
+                      borderRadius: BorderRadius.circular(20),
+                    ),
+                    child: const Icon(Icons.auto_awesome_rounded,
+                        color: _primary, size: 32),
+                  ),
+                  const SizedBox(height: 16),
+                  const Text('Analysing your preferences',
+                      style: TextStyle(
+                          color: _textPrimary,
+                          fontWeight: FontWeight.w600,
+                          fontSize: 15)),
+                  const SizedBox(height: 6),
+                  const Text('Finding your best matches...',
+                      style: TextStyle(
+                          color: _textSecondary, fontSize: 13)),
+                  const SizedBox(height: 20),
+                  const CircularProgressIndicator(color: _primary),
                 ],
               ),
             )
           : SingleChildScrollView(
+              padding: const EdgeInsets.all(20),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
+                  // Insight banner
                   Container(
                     width: double.infinity,
-                    margin: const EdgeInsets.all(16),
                     padding: const EdgeInsets.all(16),
                     decoration: BoxDecoration(
-                      color: const Color(0xFF2563EB).withOpacity(0.08),
+                      color: _primary.withOpacity(0.06),
                       borderRadius: BorderRadius.circular(16),
                       border: Border.all(
-                          color: const Color(0xFF2563EB).withOpacity(0.2)),
+                          color: _primary.withOpacity(0.15)),
                     ),
                     child: Row(
                       children: [
-                        const Icon(Icons.auto_awesome,
-                            color: Color(0xFF2563EB)),
+                        Container(
+                          width: 36,
+                          height: 36,
+                          decoration: BoxDecoration(
+                            color: _primary.withOpacity(0.12),
+                            borderRadius: BorderRadius.circular(10),
+                          ),
+                          child: const Icon(Icons.auto_awesome_rounded,
+                              color: _primary, size: 18),
+                        ),
                         const SizedBox(width: 12),
                         Expanded(
                           child: Text(_insight,
                               style: const TextStyle(
-                                  color: Color(0xFF2563EB), fontSize: 13)),
+                                  color: _primary,
+                                  fontSize: 13,
+                                  height: 1.4)),
                         ),
                       ],
                     ),
                   ),
+
                   if (_recommended.isNotEmpty) ...[
-                    const Padding(
-                      padding: EdgeInsets.fromLTRB(16, 8, 16, 8),
-                      child: Row(
-                        children: [
-                          Icon(Icons.star, color: Colors.amber, size: 18),
-                          SizedBox(width: 6),
-                          Text('Recommended For You',
-                              style: TextStyle(
-                                  fontSize: 16,
-                                  fontWeight: FontWeight.bold)),
-                        ],
-                      ),
+                    const SizedBox(height: 24),
+                    Row(
+                      children: [
+                        const Icon(Icons.star_rounded,
+                            color: Colors.amber, size: 18),
+                        const SizedBox(width: 6),
+                        const Text('Recommended For You',
+                            style: TextStyle(
+                                fontSize: 15,
+                                fontWeight: FontWeight.w700,
+                                color: _textPrimary,
+                                letterSpacing: -0.3)),
+                      ],
                     ),
-                    ..._recommended.map((p) => _providerCard(p, true)),
+                    const SizedBox(height: 12),
+                    ..._recommended.map((p) => _serviceCard(p, true)),
                   ],
+
                   if (_others.isNotEmpty) ...[
-                    const Padding(
-                      padding: EdgeInsets.fromLTRB(16, 16, 16, 8),
-                      child: Text('Other Providers',
-                          style: TextStyle(
-                              fontSize: 16, fontWeight: FontWeight.bold)),
-                    ),
-                    ..._others.map((p) => _providerCard(p, false)),
+                    const SizedBox(height: 24),
+                    const Text('Other Services',
+                        style: TextStyle(
+                            fontSize: 15,
+                            fontWeight: FontWeight.w700,
+                            color: _textPrimary,
+                            letterSpacing: -0.3)),
+                    const SizedBox(height: 12),
+                    ..._others.map((p) => _serviceCard(p, false)),
                   ],
+
                   if (_recommended.isEmpty && _others.isEmpty)
-                    const Center(
+                    Center(
                       child: Padding(
-                        padding: EdgeInsets.all(32),
+                        padding: const EdgeInsets.all(32),
                         child: Column(
                           children: [
-                            Icon(Icons.search_off,
-                                size: 64, color: Colors.grey),
-                            SizedBox(height: 12),
-                            Text('No providers available yet',
-                                style: TextStyle(color: Colors.grey)),
+                            Container(
+                              width: 64,
+                              height: 64,
+                              decoration: BoxDecoration(
+                                color: _primary.withOpacity(0.08),
+                                borderRadius: BorderRadius.circular(20),
+                              ),
+                              child: const Icon(Icons.search_off_rounded,
+                                  color: _primary, size: 32),
+                            ),
+                            const SizedBox(height: 16),
+                            const Text('No services available yet',
+                                style: TextStyle(
+                                    color: _textPrimary,
+                                    fontWeight: FontWeight.w600,
+                                    fontSize: 15)),
                           ],
                         ),
                       ),
                     ),
-                  const SizedBox(height: 20),
+
+                  const SizedBox(height: 16),
                 ],
               ),
             ),
     );
   }
 
-  Widget _providerCard(Map<String, dynamic> provider, bool isRecommended) {
-    return Card(
-      margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-      child: InkWell(
-        borderRadius: BorderRadius.circular(16),
-        onTap: () => Navigator.push(
-          context,
-          MaterialPageRoute(
-            builder: (_) => BookingScreen(
-              providerId: provider['id'],
-              providerName: provider['name'],
-              category: provider['category'],
-              price: provider['price'],
-              serviceId: provider['serviceId'],
-              serviceDescription: provider['description'],
-            ),
+  Widget _serviceCard(Map<String, dynamic> provider, bool isRecommended) {
+    return GestureDetector(
+      onTap: () => Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (_) => BookingScreen(
+            providerId: provider['id'],
+            providerName: provider['name'],
+            category: provider['category'],
+            price: provider['price'],
+            serviceId: provider['serviceId'],
+            serviceDescription: provider['description'],
           ),
         ),
-        child: Padding(
-          padding: const EdgeInsets.all(16),
-          child: Row(
-            children: [
-              Stack(
-                children: [
-                  CircleAvatar(
-                    backgroundColor: const Color(0xFF2563EB),
-                    radius: 28,
+      ),
+      child: Container(
+        margin: const EdgeInsets.only(bottom: 12),
+        padding: const EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(18),
+          border: isRecommended
+              ? Border.all(color: Colors.amber.withOpacity(0.3))
+              : null,
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withOpacity(0.05),
+              blurRadius: 16,
+              offset: const Offset(0, 4),
+            ),
+          ],
+        ),
+        child: Row(
+          children: [
+            Stack(
+              clipBehavior: Clip.none,
+              children: [
+                Container(
+                  width: 48,
+                  height: 48,
+                  decoration: BoxDecoration(
+                    color: _primary,
+                    borderRadius: BorderRadius.circular(14),
+                  ),
+                  child: Center(
                     child: Text(
                       provider['name'][0].toUpperCase(),
                       style: const TextStyle(
-                          color: Colors.white, fontSize: 20),
+                          color: Colors.white,
+                          fontSize: 18,
+                          fontWeight: FontWeight.w700),
                     ),
                   ),
-                  if (isRecommended)
-                    Positioned(
-                      right: 0,
-                      bottom: 0,
-                      child: Container(
-                        padding: const EdgeInsets.all(2),
-                        decoration: const BoxDecoration(
-                          color: Colors.amber,
-                          shape: BoxShape.circle,
-                        ),
-                        child: const Icon(Icons.star,
-                            size: 12, color: Colors.white),
-                      ),
-                    ),
-                ],
-              ),
-              const SizedBox(width: 16),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Row(
-                      children: [
-                        Text(provider['name'],
-                            style: const TextStyle(
-                                fontWeight: FontWeight.bold,
-                                fontSize: 15)),
-                        if (isRecommended) ...[
-                          const SizedBox(width: 6),
-                          Container(
-                            padding: const EdgeInsets.symmetric(
-                                horizontal: 6, vertical: 2),
-                            decoration: BoxDecoration(
-                              color: Colors.amber.withOpacity(0.15),
-                              borderRadius: BorderRadius.circular(8),
-                            ),
-                            child: const Text('Best Match',
-                                style: TextStyle(
-                                    fontSize: 10,
-                                    color: Colors.amber,
-                                    fontWeight: FontWeight.bold)),
-                          ),
-                        ],
-                      ],
-                    ),
-                    const SizedBox(height: 2),
-                    Text(provider['category'],
-                        style: const TextStyle(
-                            color: Colors.grey, fontSize: 13)),
-                    const SizedBox(height: 2),
-                    Text(provider['description'],
-                        style: const TextStyle(
-                            color: Colors.grey, fontSize: 12),
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis),
-                  ],
                 ),
-              ),
-              Column(
-                crossAxisAlignment: CrossAxisAlignment.end,
+                if (isRecommended)
+                  Positioned(
+                    right: -4,
+                    top: -4,
+                    child: Container(
+                      width: 18,
+                      height: 18,
+                      decoration: const BoxDecoration(
+                        color: Colors.amber,
+                        shape: BoxShape.circle,
+                      ),
+                      child: const Icon(Icons.star_rounded,
+                          size: 11, color: Colors.white),
+                    ),
+                  ),
+              ],
+            ),
+            const SizedBox(width: 14),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Row(
                     children: [
-                      const Icon(Icons.star,
-                          color: Colors.amber, size: 14),
-                      Text(provider['rating'].toStringAsFixed(1),
-                          style: const TextStyle(fontSize: 13)),
+                      Text(provider['name'],
+                          style: const TextStyle(
+                              fontWeight: FontWeight.w700,
+                              fontSize: 14,
+                              color: _textPrimary)),
+                      if (isRecommended) ...[
+                        const SizedBox(width: 6),
+                        Container(
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 6, vertical: 2),
+                          decoration: BoxDecoration(
+                            color: Colors.amber.withOpacity(0.12),
+                            borderRadius: BorderRadius.circular(6),
+                          ),
+                          child: const Text('Best match',
+                              style: TextStyle(
+                                  fontSize: 10,
+                                  color: Colors.amber,
+                                  fontWeight: FontWeight.w700)),
+                        ),
+                      ],
                     ],
                   ),
-                  const SizedBox(height: 4),
-                  Text('RM ${provider['price']}/hr',
+                  const SizedBox(height: 2),
+                  Text(provider['category'],
                       style: const TextStyle(
-                          color: Color(0xFF2563EB),
-                          fontWeight: FontWeight.w600,
-                          fontSize: 13)),
+                          color: _textSecondary, fontSize: 12)),
+                  const SizedBox(height: 2),
+                  Text(provider['description'],
+                      style: const TextStyle(
+                          color: _textSecondary, fontSize: 12),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis),
                 ],
               ),
-            ],
-          ),
+            ),
+            const SizedBox(width: 12),
+            Column(
+              crossAxisAlignment: CrossAxisAlignment.end,
+              children: [
+                Row(
+                  children: [
+                    const Icon(Icons.star_rounded,
+                        color: Colors.amber, size: 13),
+                    const SizedBox(width: 2),
+                    Text(provider['rating'].toStringAsFixed(1),
+                        style: const TextStyle(
+                            fontSize: 12,
+                            fontWeight: FontWeight.w600,
+                            color: _textPrimary)),
+                  ],
+                ),
+                const SizedBox(height: 4),
+                Text('RM ${provider['price']}/hr',
+                    style: const TextStyle(
+                        color: _primary,
+                        fontWeight: FontWeight.w700,
+                        fontSize: 13)),
+              ],
+            ),
+          ],
         ),
       ),
     );
