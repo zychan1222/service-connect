@@ -103,21 +103,9 @@ class _ProviderHomeScreenState extends State<ProviderHomeScreen> {
           padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
           child: Row(
             children: [
-              _navItem(
-                index: 0,
-                icon: Icons.home_rounded,
-                label: 'Home',
-              ),
-              _navItem(
-                index: 1,
-                icon: Icons.handyman_rounded,
-                label: 'Services',
-              ),
-              _navItem(
-                index: 2,
-                icon: Icons.star_rounded,
-                label: 'Reviews',
-              ),
+              _navItem(index: 0, icon: Icons.home_rounded, label: 'Home'),
+              _navItem(index: 1, icon: Icons.handyman_rounded, label: 'Services'),
+              _navItem(index: 2, icon: Icons.star_rounded, label: 'Reviews'),
               _navItemWithBadge(
                 index: 3,
                 icon: Icons.notifications_rounded,
@@ -131,11 +119,7 @@ class _ProviderHomeScreenState extends State<ProviderHomeScreen> {
     );
   }
 
-  Widget _navItem({
-    required int index,
-    required IconData icon,
-    required String label,
-  }) {
+  Widget _navItem({required int index, required IconData icon, required String label}) {
     final isSelected = _currentIndex == index;
     return Expanded(
       child: GestureDetector(
@@ -162,9 +146,7 @@ class _ProviderHomeScreenState extends State<ProviderHomeScreen> {
               Text(label,
                   style: TextStyle(
                       fontSize: 11,
-                      fontWeight: isSelected
-                          ? FontWeight.w700
-                          : FontWeight.w500,
+                      fontWeight: isSelected ? FontWeight.w700 : FontWeight.w500,
                       color: isSelected
                           ? const Color(0xFF2563EB)
                           : const Color(0xFF94A3B8))),
@@ -244,9 +226,7 @@ class _ProviderHomeScreenState extends State<ProviderHomeScreen> {
               Text(label,
                   style: TextStyle(
                       fontSize: 11,
-                      fontWeight: isSelected
-                          ? FontWeight.w700
-                          : FontWeight.w500,
+                      fontWeight: isSelected ? FontWeight.w700 : FontWeight.w500,
                       color: isSelected
                           ? const Color(0xFF2563EB)
                           : const Color(0xFF94A3B8))),
@@ -285,13 +265,33 @@ class _BookingsTab extends StatelessWidget {
     }
   }
 
+  Color _urgencyColor(String u) {
+    switch (u) {
+      case 'Urgent': return const Color(0xFFF59E0B);
+      case 'Emergency': return Colors.red;
+      default: return const Color(0xFF10B981);
+    }
+  }
+
+  Widget _tag(String label, Color bg, Color color) => Container(
+        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+        decoration: BoxDecoration(
+          color: bg,
+          borderRadius: BorderRadius.circular(8),
+        ),
+        child: Text(label,
+            style: TextStyle(
+                fontSize: 11,
+                fontWeight: FontWeight.w600,
+                color: color)),
+      );
+
   @override
   Widget build(BuildContext context) {
     return SingleChildScrollView(
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Hero header
           Container(
             width: double.infinity,
             padding: const EdgeInsets.fromLTRB(24, 24, 24, 28),
@@ -312,22 +312,17 @@ class _BookingsTab extends StatelessWidget {
                 return Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text(
-                      'Welcome, $name',
-                      style: const TextStyle(
-                        color: Colors.white,
-                        fontSize: 28,
-                        fontWeight: FontWeight.w800,
-                        letterSpacing: -0.8,
-                        height: 1.2,
-                      ),
-                    ),
+                    Text('Welcome, $name',
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontSize: 28,
+                          fontWeight: FontWeight.w800,
+                          letterSpacing: -0.8,
+                          height: 1.2,
+                        )),
                     const SizedBox(height: 4),
-                    const Text(
-                      'Manage your bookings below.',
-                      style:
-                          TextStyle(color: Colors.white70, fontSize: 14),
-                    ),
+                    const Text('Manage your bookings below.',
+                        style: TextStyle(color: Colors.white70, fontSize: 14)),
                   ],
                 );
               },
@@ -356,9 +351,7 @@ class _BookingsTab extends StatelessWidget {
               if (!snapshot.hasData) {
                 return const Padding(
                   padding: EdgeInsets.all(32),
-                  child: Center(
-                      child:
-                          CircularProgressIndicator(color: _primary)),
+                  child: Center(child: CircularProgressIndicator(color: _primary)),
                 );
               }
               final bookings = snapshot.data!.docs;
@@ -388,8 +381,7 @@ class _BookingsTab extends StatelessWidget {
                         const Text(
                             'Bookings will appear here when clients request your services',
                             textAlign: TextAlign.center,
-                            style: TextStyle(
-                                color: _textSecondary, fontSize: 13)),
+                            style: TextStyle(color: _textSecondary, fontSize: 13)),
                       ],
                     ),
                   ),
@@ -401,14 +393,23 @@ class _BookingsTab extends StatelessWidget {
                 padding: const EdgeInsets.symmetric(horizontal: 24),
                 itemCount: bookings.length,
                 itemBuilder: (context, index) {
-                  final data =
-                      bookings[index].data() as Map<String, dynamic>;
+                  final data = bookings[index].data() as Map<String, dynamic>;
                   final status = data['status'] ?? 'pending';
+                  final urgency = data['urgency'] ?? 'Normal';
+                  final budgetMin = data['budgetMin'] ?? 0;
+                  final budgetMax = data['budgetMax'] ?? 0;
+                  final hasBudget = budgetMin > 0 || budgetMax > 0;
+
                   return Container(
                     margin: const EdgeInsets.only(bottom: 12),
                     decoration: BoxDecoration(
                       color: Colors.white,
                       borderRadius: BorderRadius.circular(16),
+                      border: urgency == 'Emergency'
+                          ? Border.all(color: Colors.red.withOpacity(0.3), width: 1.5)
+                          : urgency == 'Urgent'
+                              ? Border.all(color: const Color(0xFFF59E0B).withOpacity(0.3), width: 1.5)
+                              : null,
                       boxShadow: [
                         BoxShadow(
                           color: Colors.black.withOpacity(0.05),
@@ -423,8 +424,7 @@ class _BookingsTab extends StatelessWidget {
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           Row(
-                            mainAxisAlignment:
-                                MainAxisAlignment.spaceBetween,
+                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
                             children: [
                               Row(
                                 children: [
@@ -433,13 +433,11 @@ class _BookingsTab extends StatelessWidget {
                                     height: 40,
                                     decoration: BoxDecoration(
                                       color: _primary.withOpacity(0.1),
-                                      borderRadius:
-                                          BorderRadius.circular(12),
+                                      borderRadius: BorderRadius.circular(12),
                                     ),
                                     child: Center(
                                       child: Text(
-                                        (data['clientName'] ?? 'C')[0]
-                                            .toUpperCase(),
+                                        (data['clientName'] ?? 'C')[0].toUpperCase(),
                                         style: const TextStyle(
                                             color: _primary,
                                             fontWeight: FontWeight.w700,
@@ -449,19 +447,16 @@ class _BookingsTab extends StatelessWidget {
                                   ),
                                   const SizedBox(width: 12),
                                   Column(
-                                    crossAxisAlignment:
-                                        CrossAxisAlignment.start,
+                                    crossAxisAlignment: CrossAxisAlignment.start,
                                     children: [
-                                      Text(
-                                          data['clientName'] ?? 'Client',
+                                      Text(data['clientName'] ?? 'Client',
                                           style: const TextStyle(
                                               fontWeight: FontWeight.w700,
                                               fontSize: 14,
                                               color: _textPrimary)),
                                       Text(data['category'] ?? '',
                                           style: const TextStyle(
-                                              color: _textSecondary,
-                                              fontSize: 12)),
+                                              color: _textSecondary, fontSize: 12)),
                                     ],
                                   ),
                                 ],
@@ -482,7 +477,9 @@ class _BookingsTab extends StatelessWidget {
                               ),
                             ],
                           ),
+
                           const SizedBox(height: 12),
+
                           Container(
                             padding: const EdgeInsets.all(12),
                             decoration: BoxDecoration(
@@ -491,26 +488,86 @@ class _BookingsTab extends StatelessWidget {
                             ),
                             child: Row(
                               children: [
-                                const Icon(
-                                    Icons.calendar_today_rounded,
-                                    size: 14,
-                                    color: _textSecondary),
+                                const Icon(Icons.calendar_today_rounded,
+                                    size: 14, color: _textSecondary),
                                 const SizedBox(width: 6),
                                 Text(data['date'] ?? '',
                                     style: const TextStyle(
-                                        color: _textSecondary,
-                                        fontSize: 13)),
+                                        color: _textSecondary, fontSize: 13)),
                                 const SizedBox(width: 16),
                                 const Icon(Icons.access_time_rounded,
                                     size: 14, color: _textSecondary),
                                 const SizedBox(width: 6),
                                 Text(data['time'] ?? '',
                                     style: const TextStyle(
-                                        color: _textSecondary,
-                                        fontSize: 13)),
+                                        color: _textSecondary, fontSize: 13)),
                               ],
                             ),
                           ),
+
+                          const SizedBox(height: 10),
+
+                          Wrap(
+                            spacing: 6,
+                            runSpacing: 6,
+                            children: [
+                              _tag(urgency, _urgencyColor(urgency).withOpacity(0.12),
+                                  _urgencyColor(urgency)),
+                              if ((data['estimatedDuration'] ?? '').isNotEmpty)
+                                _tag(data['estimatedDuration'],
+                                    _primary.withOpacity(0.08), _primary),
+                              if ((data['siteType'] ?? '').isNotEmpty)
+                                _tag(data['siteType'],
+                                    const Color(0xFFF1F5F9), _textSecondary),
+                              if (data['providerSupplyParts'] == true)
+                                _tag('Parts required',
+                                    const Color(0xFFFFFBEB), const Color(0xFFF59E0B)),
+                            ],
+                          ),
+
+                          if (hasBudget) ...[
+                            const SizedBox(height: 10),
+                            Row(
+                              children: [
+                                const Icon(Icons.account_balance_wallet_rounded,
+                                    size: 13, color: _textSecondary),
+                                const SizedBox(width: 6),
+                                Text('Client budget: RM $budgetMin — RM $budgetMax',
+                                    style: const TextStyle(
+                                        color: _textSecondary, fontSize: 12)),
+                              ],
+                            ),
+                          ],
+
+                          if ((data['jobDescription'] ?? '').isNotEmpty) ...[
+                            const SizedBox(height: 10),
+                            Container(
+                              width: double.infinity,
+                              padding: const EdgeInsets.all(12),
+                              decoration: BoxDecoration(
+                                color: _bg,
+                                borderRadius: BorderRadius.circular(10),
+                                border: Border.all(color: const Color(0xFFE2E8F0)),
+                              ),
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  const Text('Job Description',
+                                      style: TextStyle(
+                                          fontSize: 11,
+                                          fontWeight: FontWeight.w600,
+                                          color: _textSecondary)),
+                                  const SizedBox(height: 4),
+                                  Text(data['jobDescription'],
+                                      style: const TextStyle(
+                                          color: _textPrimary,
+                                          fontSize: 13,
+                                          height: 1.4)),
+                                ],
+                              ),
+                            ),
+                          ],
+
                           if (status == 'pending') ...[
                             const SizedBox(height: 12),
                             Row(
@@ -522,8 +579,7 @@ class _BookingsTab extends StatelessWidget {
                                           .collection('bookings')
                                           .doc(bookings[index].id)
                                           .update({'status': 'accepted'});
-                                      await NotificationService
-                                          .sendNotification(
+                                      await NotificationService.sendNotification(
                                         toUserId: data['clientId'],
                                         title: 'Booking Accepted',
                                         body:
@@ -533,12 +589,10 @@ class _BookingsTab extends StatelessWidget {
                                       );
                                     },
                                     style: ElevatedButton.styleFrom(
-                                      backgroundColor:
-                                          const Color(0xFF10B981),
+                                      backgroundColor: const Color(0xFF10B981),
                                       elevation: 0,
                                       shape: RoundedRectangleBorder(
-                                          borderRadius:
-                                              BorderRadius.circular(10)),
+                                          borderRadius: BorderRadius.circular(10)),
                                     ),
                                     child: const Text('Accept',
                                         style: TextStyle(
@@ -554,8 +608,7 @@ class _BookingsTab extends StatelessWidget {
                                           .collection('bookings')
                                           .doc(bookings[index].id)
                                           .update({'status': 'declined'});
-                                      await NotificationService
-                                          .sendNotification(
+                                      await NotificationService.sendNotification(
                                         toUserId: data['clientId'],
                                         title: 'Booking Declined',
                                         body:
@@ -566,20 +619,18 @@ class _BookingsTab extends StatelessWidget {
                                     },
                                     style: OutlinedButton.styleFrom(
                                       foregroundColor: Colors.red,
-                                      side: const BorderSide(
-                                          color: Color(0xFFE2E8F0)),
+                                      side: const BorderSide(color: Color(0xFFE2E8F0)),
                                       shape: RoundedRectangleBorder(
-                                          borderRadius:
-                                              BorderRadius.circular(10)),
+                                          borderRadius: BorderRadius.circular(10)),
                                     ),
                                     child: const Text('Decline',
-                                        style: TextStyle(
-                                            fontWeight: FontWeight.w600)),
+                                        style: TextStyle(fontWeight: FontWeight.w600)),
                                   ),
                                 ),
                               ],
                             ),
                           ],
+
                           if (status == 'accepted') ...[
                             const SizedBox(height: 12),
                             SizedBox(
@@ -589,17 +640,14 @@ class _BookingsTab extends StatelessWidget {
                                   context: context,
                                   builder: (_) => AlertDialog(
                                     shape: RoundedRectangleBorder(
-                                        borderRadius:
-                                            BorderRadius.circular(20)),
+                                        borderRadius: BorderRadius.circular(20)),
                                     title: const Text('Cancel booking?',
-                                        style: TextStyle(
-                                            fontWeight: FontWeight.w700)),
+                                        style: TextStyle(fontWeight: FontWeight.w700)),
                                     content: const Text(
                                         'This will notify the client and cannot be undone.'),
                                     actions: [
                                       TextButton(
-                                        onPressed: () =>
-                                            Navigator.pop(context),
+                                        onPressed: () => Navigator.pop(context),
                                         child: const Text('Keep it'),
                                       ),
                                       TextButton(
@@ -608,25 +656,20 @@ class _BookingsTab extends StatelessWidget {
                                           await FirebaseFirestore.instance
                                               .collection('bookings')
                                               .doc(bookings[index].id)
-                                              .update(
-                                                  {'status': 'cancelled'});
-                                          await NotificationService
-                                              .sendNotification(
+                                              .update({'status': 'cancelled'});
+                                          await NotificationService.sendNotification(
                                             toUserId: data['clientId'],
-                                            title:
-                                                'Booking Cancelled by Provider',
+                                            title: 'Booking Cancelled by Provider',
                                             body:
                                                 '${data['providerName'] ?? 'Your provider'} has cancelled the booking on ${data['date']}.',
                                             type: 'booking_cancelled',
                                             bookingId: bookings[index].id,
                                           );
                                         },
-                                        child: const Text(
-                                            'Cancel booking',
+                                        child: const Text('Cancel booking',
                                             style: TextStyle(
                                                 color: Colors.red,
-                                                fontWeight:
-                                                    FontWeight.w600)),
+                                                fontWeight: FontWeight.w600)),
                                       ),
                                     ],
                                   ),
@@ -638,11 +681,9 @@ class _BookingsTab extends StatelessWidget {
                                         color: Colors.red,
                                         fontWeight: FontWeight.w600)),
                                 style: OutlinedButton.styleFrom(
-                                  side: const BorderSide(
-                                      color: Color(0xFFE2E8F0)),
+                                  side: const BorderSide(color: Color(0xFFE2E8F0)),
                                   shape: RoundedRectangleBorder(
-                                      borderRadius:
-                                          BorderRadius.circular(10)),
+                                      borderRadius: BorderRadius.circular(10)),
                                 ),
                               ),
                             ),

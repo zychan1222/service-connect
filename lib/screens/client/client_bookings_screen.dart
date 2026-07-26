@@ -30,6 +30,14 @@ class ClientBookingsScreen extends StatelessWidget {
     }
   }
 
+  Color _urgencyColor(String u) {
+    switch (u) {
+      case 'Urgent': return const Color(0xFFF59E0B);
+      case 'Emergency': return Colors.red;
+      default: return const Color(0xFF10B981);
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final user = FirebaseAuth.instance.currentUser!;
@@ -81,8 +89,8 @@ class ClientBookingsScreen extends StatelessWidget {
                           fontWeight: FontWeight.w600)),
                   const SizedBox(height: 4),
                   const Text('Book a service to get started',
-                      style:
-                          TextStyle(color: _textSecondary, fontSize: 13)),
+                      style: TextStyle(
+                          color: _textSecondary, fontSize: 13)),
                 ],
               ),
             );
@@ -94,6 +102,11 @@ class ClientBookingsScreen extends StatelessWidget {
               final data =
                   bookings[index].data() as Map<String, dynamic>;
               final status = data['status'] ?? 'pending';
+              final urgency = data['urgency'] ?? 'Normal';
+              final budgetMin = data['budgetMin'] ?? 0;
+              final budgetMax = data['budgetMax'] ?? 0;
+              final hasBudget = budgetMin > 0 || budgetMax > 0;
+
               return Container(
                 margin: const EdgeInsets.only(bottom: 14),
                 decoration: BoxDecoration(
@@ -112,6 +125,8 @@ class ClientBookingsScreen extends StatelessWidget {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
+
+                      // Header row
                       Row(
                         mainAxisAlignment: MainAxisAlignment.spaceBetween,
                         children: [
@@ -137,7 +152,8 @@ class ClientBookingsScreen extends StatelessWidget {
                               ),
                               const SizedBox(width: 12),
                               Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
+                                crossAxisAlignment:
+                                    CrossAxisAlignment.start,
                                 children: [
                                   Text(data['providerName'] ?? 'Provider',
                                       style: const TextStyle(
@@ -171,6 +187,7 @@ class ClientBookingsScreen extends StatelessWidget {
 
                       const SizedBox(height: 14),
 
+                      // Date, time, price row
                       Container(
                         padding: const EdgeInsets.all(12),
                         decoration: BoxDecoration(
@@ -184,8 +201,7 @@ class ClientBookingsScreen extends StatelessWidget {
                             const SizedBox(width: 6),
                             Text('${data['date']} at ${data['time']}',
                                 style: const TextStyle(
-                                    color: _textSecondary,
-                                    fontSize: 12)),
+                                    color: _textSecondary, fontSize: 12)),
                             const Spacer(),
                             const Icon(Icons.attach_money_rounded,
                                 size: 13, color: _primary),
@@ -198,15 +214,83 @@ class ClientBookingsScreen extends StatelessWidget {
                         ),
                       ),
 
-                      if ((data['notes'] ?? '').isNotEmpty) ...[
+                      const SizedBox(height: 10),
+
+                      // Tags row — urgency, duration, site type
+                      Wrap(
+                        spacing: 6,
+                        runSpacing: 6,
+                        children: [
+                          if (urgency != 'Normal')
+                            _tag(urgency,
+                                _urgencyColor(urgency)
+                                    .withOpacity(0.12),
+                                _urgencyColor(urgency)),
+                          if ((data['estimatedDuration'] ?? '').isNotEmpty)
+                            _tag(data['estimatedDuration'],
+                                _primary.withOpacity(0.08), _primary),
+                          if ((data['siteType'] ?? '').isNotEmpty)
+                            _tag(data['siteType'],
+                                const Color(0xFFF1F5F9),
+                                _textSecondary),
+                          if (data['providerSupplyParts'] == true)
+                            _tag('Provider supplies parts',
+                                const Color(0xFFFFFBEB),
+                                const Color(0xFFF59E0B)),
+                        ],
+                      ),
+
+                      // Budget range
+                      if (hasBudget) ...[
                         const SizedBox(height: 10),
-                        Text('Note: ${data['notes']}',
-                            style: const TextStyle(
-                                color: _textSecondary, fontSize: 12),
-                            maxLines: 2,
-                            overflow: TextOverflow.ellipsis),
+                        Row(
+                          children: [
+                            const Icon(Icons.account_balance_wallet_rounded,
+                                size: 13, color: _textSecondary),
+                            const SizedBox(width: 6),
+                            Text(
+                              'Budget: RM $budgetMin — RM $budgetMax',
+                              style: const TextStyle(
+                                  color: _textSecondary, fontSize: 12),
+                            ),
+                          ],
+                        ),
                       ],
 
+                      // Job description
+                      if ((data['jobDescription'] ?? '').isNotEmpty) ...[
+                        const SizedBox(height: 10),
+                        Container(
+                          width: double.infinity,
+                          padding: const EdgeInsets.all(12),
+                          decoration: BoxDecoration(
+                            color: _bg,
+                            borderRadius: BorderRadius.circular(10),
+                            border: Border.all(
+                                color: const Color(0xFFE2E8F0)),
+                          ),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              const Text('Job Description',
+                                  style: TextStyle(
+                                      fontSize: 11,
+                                      fontWeight: FontWeight.w600,
+                                      color: _textSecondary)),
+                              const SizedBox(height: 4),
+                              Text(data['jobDescription'],
+                                  style: const TextStyle(
+                                      color: _textPrimary,
+                                      fontSize: 13,
+                                      height: 1.4),
+                                  maxLines: 3,
+                                  overflow: TextOverflow.ellipsis),
+                            ],
+                          ),
+                        ),
+                      ],
+
+                      // Leave review button
                       if (status == 'accepted' &&
                           (data['reviewed'] != true)) ...[
                         const SizedBox(height: 14),
@@ -240,6 +324,7 @@ class ClientBookingsScreen extends StatelessWidget {
                         ),
                       ],
 
+                      // Cancel button
                       if (status == 'pending') ...[
                         const SizedBox(height: 14),
                         SizedBox(
@@ -314,4 +399,18 @@ class ClientBookingsScreen extends StatelessWidget {
       ),
     );
   }
+
+  Widget _tag(String label, Color bg, Color color) => Container(
+        padding:
+            const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+        decoration: BoxDecoration(
+          color: bg,
+          borderRadius: BorderRadius.circular(8),
+        ),
+        child: Text(label,
+            style: TextStyle(
+                fontSize: 11,
+                fontWeight: FontWeight.w600,
+                color: color)),
+      );
 }

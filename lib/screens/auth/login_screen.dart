@@ -45,10 +45,10 @@ class _LoginScreenState extends State<LoginScreen> {
             MaterialPageRoute(builder: (_) => const AdminDashboardScreen()));
       } else if (role == 'provider') {
         Navigator.pushReplacement(context,
-            MaterialPageRoute(builder: (_) => const ProviderHomeScreen()));
+            MaterialPageRoute(builder: (_) => ProviderHomeScreen()));
       } else {
         Navigator.pushReplacement(context,
-            MaterialPageRoute(builder: (_) => const ClientHomeScreen()));
+            MaterialPageRoute(builder: (_) => ClientHomeScreen()));
       }
     } on FirebaseAuthException catch (e) {
       setState(() { _errorMessage = e.message ?? 'Sign in failed'; });
