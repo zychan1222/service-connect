@@ -15,6 +15,7 @@ class ClientBookingsScreen extends StatelessWidget {
   Color _statusColor(String status) {
     switch (status) {
       case 'accepted': return const Color(0xFF10B981);
+      case 'completed': return const Color(0xFF2563EB);
       case 'declined': return Colors.red;
       case 'cancelled': return Colors.grey;
       default: return const Color(0xFFF59E0B);
@@ -24,6 +25,7 @@ class ClientBookingsScreen extends StatelessWidget {
   Color _statusBg(String status) {
     switch (status) {
       case 'accepted': return const Color(0xFFECFDF5);
+      case 'completed': return const Color(0xFFEFF6FF);
       case 'declined': return const Color(0xFFFEF2F2);
       case 'cancelled': return const Color(0xFFF1F5F9);
       default: return const Color(0xFFFFFBEB);
@@ -125,10 +127,10 @@ class ClientBookingsScreen extends StatelessWidget {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-
-                      // Header row
+                      // Header
                       Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        mainAxisAlignment:
+                            MainAxisAlignment.spaceBetween,
                         children: [
                           Row(
                             children: [
@@ -137,7 +139,8 @@ class ClientBookingsScreen extends StatelessWidget {
                                 height: 42,
                                 decoration: BoxDecoration(
                                   color: _primary,
-                                  borderRadius: BorderRadius.circular(12),
+                                  borderRadius:
+                                      BorderRadius.circular(12),
                                 ),
                                 child: Center(
                                   child: Text(
@@ -155,7 +158,9 @@ class ClientBookingsScreen extends StatelessWidget {
                                 crossAxisAlignment:
                                     CrossAxisAlignment.start,
                                 children: [
-                                  Text(data['providerName'] ?? 'Provider',
+                                  Text(
+                                      data['providerName'] ??
+                                          'Provider',
                                       style: const TextStyle(
                                           fontWeight: FontWeight.w700,
                                           fontSize: 14,
@@ -187,7 +192,7 @@ class ClientBookingsScreen extends StatelessWidget {
 
                       const SizedBox(height: 14),
 
-                      // Date, time, price row
+                      // Date + price
                       Container(
                         padding: const EdgeInsets.all(12),
                         decoration: BoxDecoration(
@@ -199,9 +204,11 @@ class ClientBookingsScreen extends StatelessWidget {
                             const Icon(Icons.calendar_today_rounded,
                                 size: 13, color: _textSecondary),
                             const SizedBox(width: 6),
-                            Text('${data['date']} at ${data['time']}',
+                            Text(
+                                '${data['date']} at ${data['time']}',
                                 style: const TextStyle(
-                                    color: _textSecondary, fontSize: 12)),
+                                    color: _textSecondary,
+                                    fontSize: 12)),
                             const Spacer(),
                             const Icon(Icons.attach_money_rounded,
                                 size: 13, color: _primary),
@@ -216,23 +223,22 @@ class ClientBookingsScreen extends StatelessWidget {
 
                       const SizedBox(height: 10),
 
-                      // Tags row — urgency, duration, site type
+                      // Tags
                       Wrap(
                         spacing: 6,
                         runSpacing: 6,
                         children: [
                           if (urgency != 'Normal')
                             _tag(urgency,
-                                _urgencyColor(urgency)
-                                    .withOpacity(0.12),
+                                _urgencyColor(urgency).withOpacity(0.12),
                                 _urgencyColor(urgency)),
-                          if ((data['estimatedDuration'] ?? '').isNotEmpty)
+                          if ((data['estimatedDuration'] ?? '')
+                              .isNotEmpty)
                             _tag(data['estimatedDuration'],
                                 _primary.withOpacity(0.08), _primary),
                           if ((data['siteType'] ?? '').isNotEmpty)
                             _tag(data['siteType'],
-                                const Color(0xFFF1F5F9),
-                                _textSecondary),
+                                const Color(0xFFF1F5F9), _textSecondary),
                           if (data['providerSupplyParts'] == true)
                             _tag('Provider supplies parts',
                                 const Color(0xFFFFFBEB),
@@ -240,13 +246,15 @@ class ClientBookingsScreen extends StatelessWidget {
                         ],
                       ),
 
-                      // Budget range
+                      // Budget
                       if (hasBudget) ...[
                         const SizedBox(height: 10),
                         Row(
                           children: [
-                            const Icon(Icons.account_balance_wallet_rounded,
-                                size: 13, color: _textSecondary),
+                            const Icon(
+                                Icons.account_balance_wallet_rounded,
+                                size: 13,
+                                color: _textSecondary),
                             const SizedBox(width: 6),
                             Text(
                               'Budget: RM $budgetMin — RM $budgetMax',
@@ -290,10 +298,37 @@ class ClientBookingsScreen extends StatelessWidget {
                         ),
                       ],
 
-                      // Leave review button
-                      if (status == 'accepted' &&
+                      // Completed — leave review
+                      if (status == 'completed' &&
                           (data['reviewed'] != true)) ...[
                         const SizedBox(height: 14),
+                        Container(
+                          padding: const EdgeInsets.all(12),
+                          decoration: BoxDecoration(
+                            color: const Color(0xFFEFF6FF),
+                            borderRadius: BorderRadius.circular(12),
+                            border: Border.all(
+                                color: const Color(0xFF2563EB)
+                                    .withOpacity(0.2)),
+                          ),
+                          child: Row(
+                            children: [
+                              const Icon(Icons.check_circle_rounded,
+                                  color: Color(0xFF2563EB), size: 16),
+                              const SizedBox(width: 8),
+                              const Expanded(
+                                child: Text(
+                                  'Job completed! Share your experience.',
+                                  style: TextStyle(
+                                      color: Color(0xFF2563EB),
+                                      fontSize: 12,
+                                      fontWeight: FontWeight.w500),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                        const SizedBox(height: 8),
                         SizedBox(
                           width: double.infinity,
                           height: 44,
@@ -324,7 +359,32 @@ class ClientBookingsScreen extends StatelessWidget {
                         ),
                       ],
 
-                      // Cancel button
+                      // Completed and reviewed
+                      if (status == 'completed' &&
+                          data['reviewed'] == true) ...[
+                        const SizedBox(height: 10),
+                        Container(
+                          padding: const EdgeInsets.all(12),
+                          decoration: BoxDecoration(
+                            color: const Color(0xFFECFDF5),
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                          child: const Row(
+                            children: [
+                              Icon(Icons.verified_rounded,
+                                  color: Color(0xFF10B981), size: 16),
+                              SizedBox(width: 8),
+                              Text('Review submitted — thank you!',
+                                  style: TextStyle(
+                                      color: Color(0xFF10B981),
+                                      fontSize: 12,
+                                      fontWeight: FontWeight.w500)),
+                            ],
+                          ),
+                        ),
+                      ],
+
+                      // Pending — cancel
                       if (status == 'pending') ...[
                         const SizedBox(height: 14),
                         SizedBox(
@@ -369,7 +429,8 @@ class ClientBookingsScreen extends StatelessWidget {
                                     child: const Text('Cancel booking',
                                         style: TextStyle(
                                             color: Colors.red,
-                                            fontWeight: FontWeight.w600)),
+                                            fontWeight:
+                                                FontWeight.w600)),
                                   ),
                                 ],
                               ),
@@ -384,7 +445,8 @@ class ClientBookingsScreen extends StatelessWidget {
                               side: const BorderSide(
                                   color: Color(0xFFE2E8F0)),
                               shape: RoundedRectangleBorder(
-                                  borderRadius: BorderRadius.circular(12)),
+                                  borderRadius:
+                                      BorderRadius.circular(12)),
                             ),
                           ),
                         ),

@@ -66,7 +66,8 @@ class _ProviderHomeScreenState extends State<ProviderHomeScreen> {
               await FirebaseAuth.instance.signOut();
               if (context.mounted) {
                 Navigator.pushReplacement(context,
-                    MaterialPageRoute(builder: (_) => const LoginScreen()));
+                    MaterialPageRoute(
+                        builder: (_) => const LoginScreen()));
               }
             },
           ),
@@ -100,12 +101,22 @@ class _ProviderHomeScreenState extends State<ProviderHomeScreen> {
       ),
       child: SafeArea(
         child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
+          padding:
+              const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
           child: Row(
             children: [
-              _navItem(index: 0, icon: Icons.home_rounded, label: 'Home'),
-              _navItem(index: 1, icon: Icons.handyman_rounded, label: 'Services'),
-              _navItem(index: 2, icon: Icons.star_rounded, label: 'Reviews'),
+              _navItem(
+                  index: 0,
+                  icon: Icons.home_rounded,
+                  label: 'Home'),
+              _navItem(
+                  index: 1,
+                  icon: Icons.handyman_rounded,
+                  label: 'Services'),
+              _navItem(
+                  index: 2,
+                  icon: Icons.star_rounded,
+                  label: 'Reviews'),
               _navItemWithBadge(
                 index: 3,
                 icon: Icons.notifications_rounded,
@@ -119,7 +130,10 @@ class _ProviderHomeScreenState extends State<ProviderHomeScreen> {
     );
   }
 
-  Widget _navItem({required int index, required IconData icon, required String label}) {
+  Widget _navItem(
+      {required int index,
+      required IconData icon,
+      required String label}) {
     final isSelected = _currentIndex == index;
     return Expanded(
       child: GestureDetector(
@@ -146,7 +160,9 @@ class _ProviderHomeScreenState extends State<ProviderHomeScreen> {
               Text(label,
                   style: TextStyle(
                       fontSize: 11,
-                      fontWeight: isSelected ? FontWeight.w700 : FontWeight.w500,
+                      fontWeight: isSelected
+                          ? FontWeight.w700
+                          : FontWeight.w500,
                       color: isSelected
                           ? const Color(0xFF2563EB)
                           : const Color(0xFF94A3B8))),
@@ -226,7 +242,9 @@ class _ProviderHomeScreenState extends State<ProviderHomeScreen> {
               Text(label,
                   style: TextStyle(
                       fontSize: 11,
-                      fontWeight: isSelected ? FontWeight.w700 : FontWeight.w500,
+                      fontWeight: isSelected
+                          ? FontWeight.w700
+                          : FontWeight.w500,
                       color: isSelected
                           ? const Color(0xFF2563EB)
                           : const Color(0xFF94A3B8))),
@@ -250,6 +268,7 @@ class _BookingsTab extends StatelessWidget {
   Color _statusColor(String status) {
     switch (status) {
       case 'accepted': return const Color(0xFF10B981);
+      case 'completed': return const Color(0xFF2563EB);
       case 'declined': return Colors.red;
       case 'cancelled': return Colors.grey;
       default: return const Color(0xFFF59E0B);
@@ -259,6 +278,7 @@ class _BookingsTab extends StatelessWidget {
   Color _statusBg(String status) {
     switch (status) {
       case 'accepted': return const Color(0xFFECFDF5);
+      case 'completed': return const Color(0xFFEFF6FF);
       case 'declined': return const Color(0xFFFEF2F2);
       case 'cancelled': return const Color(0xFFF1F5F9);
       default: return const Color(0xFFFFFBEB);
@@ -274,7 +294,8 @@ class _BookingsTab extends StatelessWidget {
   }
 
   Widget _tag(String label, Color bg, Color color) => Container(
-        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+        padding:
+            const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
         decoration: BoxDecoration(
           color: bg,
           borderRadius: BorderRadius.circular(8),
@@ -308,7 +329,8 @@ class _BookingsTab extends StatelessWidget {
                   .doc(user?.uid)
                   .get(),
               builder: (context, snapshot) {
-                final name = snapshot.data?.get('name') ?? 'Provider';
+                final name =
+                    snapshot.data?.get('name') ?? 'Provider';
                 return Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
@@ -322,7 +344,8 @@ class _BookingsTab extends StatelessWidget {
                         )),
                     const SizedBox(height: 4),
                     const Text('Manage your bookings below.',
-                        style: TextStyle(color: Colors.white70, fontSize: 14)),
+                        style: TextStyle(
+                            color: Colors.white70, fontSize: 14)),
                   ],
                 );
               },
@@ -351,7 +374,9 @@ class _BookingsTab extends StatelessWidget {
               if (!snapshot.hasData) {
                 return const Padding(
                   padding: EdgeInsets.all(32),
-                  child: Center(child: CircularProgressIndicator(color: _primary)),
+                  child: Center(
+                      child: CircularProgressIndicator(
+                          color: _primary)),
                 );
               }
               final bookings = snapshot.data!.docs;
@@ -381,7 +406,9 @@ class _BookingsTab extends StatelessWidget {
                         const Text(
                             'Bookings will appear here when clients request your services',
                             textAlign: TextAlign.center,
-                            style: TextStyle(color: _textSecondary, fontSize: 13)),
+                            style: TextStyle(
+                                color: _textSecondary,
+                                fontSize: 13)),
                       ],
                     ),
                   ),
@@ -390,15 +417,18 @@ class _BookingsTab extends StatelessWidget {
               return ListView.builder(
                 shrinkWrap: true,
                 physics: const NeverScrollableScrollPhysics(),
-                padding: const EdgeInsets.symmetric(horizontal: 24),
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 24),
                 itemCount: bookings.length,
                 itemBuilder: (context, index) {
-                  final data = bookings[index].data() as Map<String, dynamic>;
+                  final data = bookings[index].data()
+                      as Map<String, dynamic>;
                   final status = data['status'] ?? 'pending';
                   final urgency = data['urgency'] ?? 'Normal';
                   final budgetMin = data['budgetMin'] ?? 0;
                   final budgetMax = data['budgetMax'] ?? 0;
-                  final hasBudget = budgetMin > 0 || budgetMax > 0;
+                  final hasBudget =
+                      budgetMin > 0 || budgetMax > 0;
 
                   return Container(
                     margin: const EdgeInsets.only(bottom: 12),
@@ -406,9 +436,14 @@ class _BookingsTab extends StatelessWidget {
                       color: Colors.white,
                       borderRadius: BorderRadius.circular(16),
                       border: urgency == 'Emergency'
-                          ? Border.all(color: Colors.red.withOpacity(0.3), width: 1.5)
+                          ? Border.all(
+                              color: Colors.red.withOpacity(0.3),
+                              width: 1.5)
                           : urgency == 'Urgent'
-                              ? Border.all(color: const Color(0xFFF59E0B).withOpacity(0.3), width: 1.5)
+                              ? Border.all(
+                                  color: const Color(0xFFF59E0B)
+                                      .withOpacity(0.3),
+                                  width: 1.5)
                               : null,
                       boxShadow: [
                         BoxShadow(
@@ -423,8 +458,10 @@ class _BookingsTab extends StatelessWidget {
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
+                          // Client info + status
                           Row(
-                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                            mainAxisAlignment:
+                                MainAxisAlignment.spaceBetween,
                             children: [
                               Row(
                                 children: [
@@ -432,31 +469,41 @@ class _BookingsTab extends StatelessWidget {
                                     width: 40,
                                     height: 40,
                                     decoration: BoxDecoration(
-                                      color: _primary.withOpacity(0.1),
-                                      borderRadius: BorderRadius.circular(12),
+                                      color:
+                                          _primary.withOpacity(0.1),
+                                      borderRadius:
+                                          BorderRadius.circular(12),
                                     ),
                                     child: Center(
                                       child: Text(
-                                        (data['clientName'] ?? 'C')[0].toUpperCase(),
+                                        (data['clientName'] ??
+                                                'C')[0]
+                                            .toUpperCase(),
                                         style: const TextStyle(
                                             color: _primary,
-                                            fontWeight: FontWeight.w700,
+                                            fontWeight:
+                                                FontWeight.w700,
                                             fontSize: 16),
                                       ),
                                     ),
                                   ),
                                   const SizedBox(width: 12),
                                   Column(
-                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.start,
                                     children: [
-                                      Text(data['clientName'] ?? 'Client',
+                                      Text(
+                                          data['clientName'] ??
+                                              'Client',
                                           style: const TextStyle(
-                                              fontWeight: FontWeight.w700,
+                                              fontWeight:
+                                                  FontWeight.w700,
                                               fontSize: 14,
                                               color: _textPrimary)),
                                       Text(data['category'] ?? '',
                                           style: const TextStyle(
-                                              color: _textSecondary, fontSize: 12)),
+                                              color: _textSecondary,
+                                              fontSize: 12)),
                                     ],
                                   ),
                                 ],
@@ -466,7 +513,8 @@ class _BookingsTab extends StatelessWidget {
                                     horizontal: 10, vertical: 5),
                                 decoration: BoxDecoration(
                                   color: _statusBg(status),
-                                  borderRadius: BorderRadius.circular(20),
+                                  borderRadius:
+                                      BorderRadius.circular(20),
                                 ),
                                 child: Text(status.toUpperCase(),
                                     style: TextStyle(
@@ -480,6 +528,7 @@ class _BookingsTab extends StatelessWidget {
 
                           const SizedBox(height: 12),
 
+                          // Date & time
                           Container(
                             padding: const EdgeInsets.all(12),
                             decoration: BoxDecoration(
@@ -488,69 +537,101 @@ class _BookingsTab extends StatelessWidget {
                             ),
                             child: Row(
                               children: [
-                                const Icon(Icons.calendar_today_rounded,
-                                    size: 14, color: _textSecondary),
+                                const Icon(
+                                    Icons.calendar_today_rounded,
+                                    size: 14,
+                                    color: _textSecondary),
                                 const SizedBox(width: 6),
                                 Text(data['date'] ?? '',
                                     style: const TextStyle(
-                                        color: _textSecondary, fontSize: 13)),
+                                        color: _textSecondary,
+                                        fontSize: 13)),
                                 const SizedBox(width: 16),
                                 const Icon(Icons.access_time_rounded,
-                                    size: 14, color: _textSecondary),
+                                    size: 14,
+                                    color: _textSecondary),
                                 const SizedBox(width: 6),
                                 Text(data['time'] ?? '',
                                     style: const TextStyle(
-                                        color: _textSecondary, fontSize: 13)),
+                                        color: _textSecondary,
+                                        fontSize: 13)),
                               ],
                             ),
                           ),
 
                           const SizedBox(height: 10),
 
+                          // Tags
                           Wrap(
                             spacing: 6,
                             runSpacing: 6,
                             children: [
-                              _tag(urgency, _urgencyColor(urgency).withOpacity(0.12),
-                                  _urgencyColor(urgency)),
-                              if ((data['estimatedDuration'] ?? '').isNotEmpty)
-                                _tag(data['estimatedDuration'],
-                                    _primary.withOpacity(0.08), _primary),
+                              _tag(
+                                urgency,
+                                _urgencyColor(urgency)
+                                    .withOpacity(0.12),
+                                _urgencyColor(urgency),
+                              ),
+                              if ((data['estimatedDuration'] ?? '')
+                                  .isNotEmpty)
+                                _tag(
+                                  data['estimatedDuration'],
+                                  _primary.withOpacity(0.08),
+                                  _primary,
+                                ),
                               if ((data['siteType'] ?? '').isNotEmpty)
-                                _tag(data['siteType'],
-                                    const Color(0xFFF1F5F9), _textSecondary),
+                                _tag(
+                                  data['siteType'],
+                                  const Color(0xFFF1F5F9),
+                                  _textSecondary,
+                                ),
                               if (data['providerSupplyParts'] == true)
-                                _tag('Parts required',
-                                    const Color(0xFFFFFBEB), const Color(0xFFF59E0B)),
+                                _tag(
+                                  'Parts required',
+                                  const Color(0xFFFFFBEB),
+                                  const Color(0xFFF59E0B),
+                                ),
                             ],
                           ),
 
+                          // Budget
                           if (hasBudget) ...[
                             const SizedBox(height: 10),
                             Row(
                               children: [
-                                const Icon(Icons.account_balance_wallet_rounded,
-                                    size: 13, color: _textSecondary),
+                                const Icon(
+                                    Icons
+                                        .account_balance_wallet_rounded,
+                                    size: 13,
+                                    color: _textSecondary),
                                 const SizedBox(width: 6),
-                                Text('Client budget: RM $budgetMin — RM $budgetMax',
-                                    style: const TextStyle(
-                                        color: _textSecondary, fontSize: 12)),
+                                Text(
+                                  'Client budget: RM $budgetMin — RM $budgetMax',
+                                  style: const TextStyle(
+                                      color: _textSecondary,
+                                      fontSize: 12),
+                                ),
                               ],
                             ),
                           ],
 
-                          if ((data['jobDescription'] ?? '').isNotEmpty) ...[
+                          // Job description
+                          if ((data['jobDescription'] ?? '')
+                              .isNotEmpty) ...[
                             const SizedBox(height: 10),
                             Container(
                               width: double.infinity,
                               padding: const EdgeInsets.all(12),
                               decoration: BoxDecoration(
                                 color: _bg,
-                                borderRadius: BorderRadius.circular(10),
-                                border: Border.all(color: const Color(0xFFE2E8F0)),
+                                borderRadius:
+                                    BorderRadius.circular(10),
+                                border: Border.all(
+                                    color: const Color(0xFFE2E8F0)),
                               ),
                               child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
+                                crossAxisAlignment:
+                                    CrossAxisAlignment.start,
                                 children: [
                                   const Text('Job Description',
                                       style: TextStyle(
@@ -568,6 +649,7 @@ class _BookingsTab extends StatelessWidget {
                             ),
                           ],
 
+                          // Pending — accept/decline
                           if (status == 'pending') ...[
                             const SizedBox(height: 12),
                             Row(
@@ -578,8 +660,10 @@ class _BookingsTab extends StatelessWidget {
                                       await FirebaseFirestore.instance
                                           .collection('bookings')
                                           .doc(bookings[index].id)
-                                          .update({'status': 'accepted'});
-                                      await NotificationService.sendNotification(
+                                          .update(
+                                              {'status': 'accepted'});
+                                      await NotificationService
+                                          .sendNotification(
                                         toUserId: data['clientId'],
                                         title: 'Booking Accepted',
                                         body:
@@ -589,15 +673,19 @@ class _BookingsTab extends StatelessWidget {
                                       );
                                     },
                                     style: ElevatedButton.styleFrom(
-                                      backgroundColor: const Color(0xFF10B981),
+                                      backgroundColor:
+                                          const Color(0xFF10B981),
                                       elevation: 0,
                                       shape: RoundedRectangleBorder(
-                                          borderRadius: BorderRadius.circular(10)),
+                                          borderRadius:
+                                              BorderRadius.circular(
+                                                  10)),
                                     ),
                                     child: const Text('Accept',
                                         style: TextStyle(
                                             color: Colors.white,
-                                            fontWeight: FontWeight.w600)),
+                                            fontWeight:
+                                                FontWeight.w600)),
                                   ),
                                 ),
                                 const SizedBox(width: 8),
@@ -607,8 +695,10 @@ class _BookingsTab extends StatelessWidget {
                                       await FirebaseFirestore.instance
                                           .collection('bookings')
                                           .doc(bookings[index].id)
-                                          .update({'status': 'declined'});
-                                      await NotificationService.sendNotification(
+                                          .update(
+                                              {'status': 'declined'});
+                                      await NotificationService
+                                          .sendNotification(
                                         toUserId: data['clientId'],
                                         title: 'Booking Declined',
                                         body:
@@ -619,20 +709,99 @@ class _BookingsTab extends StatelessWidget {
                                     },
                                     style: OutlinedButton.styleFrom(
                                       foregroundColor: Colors.red,
-                                      side: const BorderSide(color: Color(0xFFE2E8F0)),
+                                      side: const BorderSide(
+                                          color: Color(0xFFE2E8F0)),
                                       shape: RoundedRectangleBorder(
-                                          borderRadius: BorderRadius.circular(10)),
+                                          borderRadius:
+                                              BorderRadius.circular(
+                                                  10)),
                                     ),
                                     child: const Text('Decline',
-                                        style: TextStyle(fontWeight: FontWeight.w600)),
+                                        style: TextStyle(
+                                            fontWeight:
+                                                FontWeight.w600)),
                                   ),
                                 ),
                               ],
                             ),
                           ],
 
+                          // Accepted — mark complete + cancel
                           if (status == 'accepted') ...[
                             const SizedBox(height: 12),
+                            SizedBox(
+                              width: double.infinity,
+                              child: ElevatedButton.icon(
+                                onPressed: () => showDialog(
+                                  context: context,
+                                  builder: (_) => AlertDialog(
+                                    shape: RoundedRectangleBorder(
+                                        borderRadius:
+                                            BorderRadius.circular(20)),
+                                    title: const Text(
+                                        'Mark as completed?',
+                                        style: TextStyle(
+                                            fontWeight:
+                                                FontWeight.w700)),
+                                    content: const Text(
+                                        'This confirms the job is done. The client will be notified and can leave a review.'),
+                                    actions: [
+                                      TextButton(
+                                        onPressed: () =>
+                                            Navigator.pop(context),
+                                        child: const Text('Not yet'),
+                                      ),
+                                      TextButton(
+                                        onPressed: () async {
+                                          Navigator.pop(context);
+                                          await FirebaseFirestore
+                                              .instance
+                                              .collection('bookings')
+                                              .doc(bookings[index].id)
+                                              .update({
+                                            'status': 'completed'
+                                          });
+                                          await NotificationService
+                                              .sendNotification(
+                                            toUserId: data['clientId'],
+                                            title: 'Job Completed',
+                                            body:
+                                                '${data['providerName'] ?? 'Your provider'} has marked the job on ${data['date']} as completed. Leave a review!',
+                                            type: 'booking_completed',
+                                            bookingId:
+                                                bookings[index].id,
+                                          );
+                                        },
+                                        child: const Text(
+                                            'Mark complete',
+                                            style: TextStyle(
+                                                color: Color(
+                                                    0xFF2563EB),
+                                                fontWeight:
+                                                    FontWeight.w600)),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                                icon: const Icon(
+                                    Icons.check_circle_rounded,
+                                    color: Colors.white,
+                                    size: 16),
+                                label: const Text('Mark as Completed',
+                                    style: TextStyle(
+                                        color: Colors.white,
+                                        fontWeight: FontWeight.w600)),
+                                style: ElevatedButton.styleFrom(
+                                  backgroundColor:
+                                      const Color(0xFF2563EB),
+                                  elevation: 0,
+                                  shape: RoundedRectangleBorder(
+                                      borderRadius:
+                                          BorderRadius.circular(10)),
+                                ),
+                              ),
+                            ),
+                            const SizedBox(height: 8),
                             SizedBox(
                               width: double.infinity,
                               child: OutlinedButton.icon(
@@ -640,36 +809,48 @@ class _BookingsTab extends StatelessWidget {
                                   context: context,
                                   builder: (_) => AlertDialog(
                                     shape: RoundedRectangleBorder(
-                                        borderRadius: BorderRadius.circular(20)),
+                                        borderRadius:
+                                            BorderRadius.circular(20)),
                                     title: const Text('Cancel booking?',
-                                        style: TextStyle(fontWeight: FontWeight.w700)),
+                                        style: TextStyle(
+                                            fontWeight:
+                                                FontWeight.w700)),
                                     content: const Text(
                                         'This will notify the client and cannot be undone.'),
                                     actions: [
                                       TextButton(
-                                        onPressed: () => Navigator.pop(context),
+                                        onPressed: () =>
+                                            Navigator.pop(context),
                                         child: const Text('Keep it'),
                                       ),
                                       TextButton(
                                         onPressed: () async {
                                           Navigator.pop(context);
-                                          await FirebaseFirestore.instance
+                                          await FirebaseFirestore
+                                              .instance
                                               .collection('bookings')
                                               .doc(bookings[index].id)
-                                              .update({'status': 'cancelled'});
-                                          await NotificationService.sendNotification(
+                                              .update({
+                                            'status': 'cancelled'
+                                          });
+                                          await NotificationService
+                                              .sendNotification(
                                             toUserId: data['clientId'],
-                                            title: 'Booking Cancelled by Provider',
+                                            title:
+                                                'Booking Cancelled by Provider',
                                             body:
                                                 '${data['providerName'] ?? 'Your provider'} has cancelled the booking on ${data['date']}.',
                                             type: 'booking_cancelled',
-                                            bookingId: bookings[index].id,
+                                            bookingId:
+                                                bookings[index].id,
                                           );
                                         },
-                                        child: const Text('Cancel booking',
+                                        child: const Text(
+                                            'Cancel booking',
                                             style: TextStyle(
                                                 color: Colors.red,
-                                                fontWeight: FontWeight.w600)),
+                                                fontWeight:
+                                                    FontWeight.w600)),
                                       ),
                                     ],
                                   ),
@@ -681,9 +862,11 @@ class _BookingsTab extends StatelessWidget {
                                         color: Colors.red,
                                         fontWeight: FontWeight.w600)),
                                 style: OutlinedButton.styleFrom(
-                                  side: const BorderSide(color: Color(0xFFE2E8F0)),
+                                  side: const BorderSide(
+                                      color: Color(0xFFE2E8F0)),
                                   shape: RoundedRectangleBorder(
-                                      borderRadius: BorderRadius.circular(10)),
+                                      borderRadius:
+                                          BorderRadius.circular(10)),
                                 ),
                               ),
                             ),
