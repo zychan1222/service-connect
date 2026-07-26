@@ -5,8 +5,7 @@ import '../auth/login_screen.dart';
 import 'client_bookings_screen.dart';
 import 'recommendations_screen.dart';
 import 'provider_list_screen.dart';
-import 'booking_screen.dart';
-import '../../widgets/notification_bell.dart';
+import 'provider_profile_screen.dart';
 import '../../screens/notifications_screen.dart';
 
 class ClientHomeScreen extends StatefulWidget {
@@ -21,8 +20,6 @@ class _ClientHomeScreenState extends State<ClientHomeScreen> {
 
   static const _primary = Color(0xFF2563EB);
   static const _bg = Color(0xFFF7F8FA);
-  static const _textPrimary = Color(0xFF0F172A);
-  static const _textSecondary = Color(0xFF64748B);
 
   static const List<Map<String, dynamic>> _categories = [
     {'label': 'Plumbing', 'icon': Icons.plumbing},
@@ -116,21 +113,9 @@ class _ClientHomeScreenState extends State<ClientHomeScreen> {
           padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
           child: Row(
             children: [
-              _navItem(
-                index: 0,
-                icon: Icons.home_rounded,
-                label: 'Home',
-              ),
-              _navItem(
-                index: 1,
-                icon: Icons.auto_awesome_rounded,
-                label: 'For You',
-              ),
-              _navItem(
-                index: 2,
-                icon: Icons.calendar_month_rounded,
-                label: 'Bookings',
-              ),
+              _navItem(index: 0, icon: Icons.home_rounded, label: 'Home'),
+              _navItem(index: 1, icon: Icons.auto_awesome_rounded, label: 'For You'),
+              _navItem(index: 2, icon: Icons.calendar_month_rounded, label: 'Bookings'),
               _navItemWithBadge(
                 index: 3,
                 icon: Icons.notifications_rounded,
@@ -144,11 +129,7 @@ class _ClientHomeScreenState extends State<ClientHomeScreen> {
     );
   }
 
-  Widget _navItem({
-    required int index,
-    required IconData icon,
-    required String label,
-  }) {
+  Widget _navItem({required int index, required IconData icon, required String label}) {
     final isSelected = _currentIndex == index;
     return Expanded(
       child: GestureDetector(
@@ -175,9 +156,7 @@ class _ClientHomeScreenState extends State<ClientHomeScreen> {
               Text(label,
                   style: TextStyle(
                       fontSize: 11,
-                      fontWeight: isSelected
-                          ? FontWeight.w700
-                          : FontWeight.w500,
+                      fontWeight: isSelected ? FontWeight.w700 : FontWeight.w500,
                       color: isSelected
                           ? const Color(0xFF2563EB)
                           : const Color(0xFF94A3B8))),
@@ -257,9 +236,7 @@ class _ClientHomeScreenState extends State<ClientHomeScreen> {
               Text(label,
                   style: TextStyle(
                       fontSize: 11,
-                      fontWeight: isSelected
-                          ? FontWeight.w700
-                          : FontWeight.w500,
+                      fontWeight: isSelected ? FontWeight.w700 : FontWeight.w500,
                       color: isSelected
                           ? const Color(0xFF2563EB)
                           : const Color(0xFF94A3B8))),
@@ -295,7 +272,6 @@ class _HomeTab extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Hero header
           Container(
             width: double.infinity,
             padding: const EdgeInsets.fromLTRB(24, 24, 24, 28),
@@ -316,22 +292,17 @@ class _HomeTab extends StatelessWidget {
                 return Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text(
-                      'Hello, $name',
-                      style: const TextStyle(
-                        color: Colors.white,
-                        fontSize: 28,
-                        fontWeight: FontWeight.w800,
-                        letterSpacing: -0.8,
-                        height: 1.2,
-                      ),
-                    ),
+                    Text('Hello, $name',
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontSize: 28,
+                          fontWeight: FontWeight.w800,
+                          letterSpacing: -0.8,
+                          height: 1.2,
+                        )),
                     const SizedBox(height: 4),
-                    const Text(
-                      'What do you need help with today?',
-                      style:
-                          TextStyle(color: Colors.white70, fontSize: 14),
-                    ),
+                    const Text('What do you need help with today?',
+                        style: TextStyle(color: Colors.white70, fontSize: 14)),
                   ],
                 );
               },
@@ -340,7 +311,6 @@ class _HomeTab extends StatelessWidget {
 
           const SizedBox(height: 28),
 
-          // Categories
           const Padding(
             padding: EdgeInsets.symmetric(horizontal: 24),
             child: Text('Browse Categories',
@@ -355,8 +325,7 @@ class _HomeTab extends StatelessWidget {
             shrinkWrap: true,
             physics: const NeverScrollableScrollPhysics(),
             padding: const EdgeInsets.symmetric(horizontal: 24),
-            gridDelegate:
-                const SliverGridDelegateWithFixedCrossAxisCount(
+            gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
               crossAxisCount: 3,
               crossAxisSpacing: 12,
               mainAxisSpacing: 12,
@@ -393,8 +362,7 @@ class _HomeTab extends StatelessWidget {
                           color: _primary.withOpacity(0.08),
                           borderRadius: BorderRadius.circular(12),
                         ),
-                        child:
-                            Icon(cat['icon'], color: _primary, size: 22),
+                        child: Icon(cat['icon'], color: _primary, size: 22),
                       ),
                       const SizedBox(height: 8),
                       Text(cat['label'],
@@ -412,7 +380,6 @@ class _HomeTab extends StatelessWidget {
 
           const SizedBox(height: 28),
 
-          // All Services
           const Padding(
             padding: EdgeInsets.symmetric(horizontal: 24),
             child: Text('All Services',
@@ -431,8 +398,7 @@ class _HomeTab extends StatelessWidget {
                 return const Padding(
                   padding: EdgeInsets.all(32),
                   child: Center(
-                      child:
-                          CircularProgressIndicator(color: _primary)),
+                      child: CircularProgressIndicator(color: _primary)),
                 );
               }
               final services = snapshot.data!;
@@ -478,13 +444,11 @@ class _HomeTab extends StatelessWidget {
                     onTap: () => Navigator.push(
                       context,
                       MaterialPageRoute(
-                        builder: (_) => BookingScreen(
+                        builder: (_) => ProviderProfileScreen(
                           providerId: data['providerId'],
                           providerName: data['providerName'],
-                          category: data['category'],
-                          price: (data['price'] as num).toDouble(),
-                          serviceId: data['serviceId'],
-                          serviceDescription: data['description'],
+                          providerRating:
+                              (data['providerRating'] as num).toDouble(),
                         ),
                       ),
                     ),
@@ -513,8 +477,7 @@ class _HomeTab extends StatelessWidget {
                             ),
                             child: Center(
                               child: Text(
-                                (data['providerName'] ?? 'P')[0]
-                                    .toUpperCase(),
+                                (data['providerName'] ?? 'P')[0].toUpperCase(),
                                 style: const TextStyle(
                                     color: Colors.white,
                                     fontSize: 18,
@@ -527,8 +490,7 @@ class _HomeTab extends StatelessWidget {
                             child: Column(
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
-                                Text(
-                                    data['providerName'] ?? 'Provider',
+                                Text(data['providerName'] ?? 'Provider',
                                     style: const TextStyle(
                                         fontWeight: FontWeight.w700,
                                         fontSize: 14,
@@ -536,13 +498,11 @@ class _HomeTab extends StatelessWidget {
                                 const SizedBox(height: 2),
                                 Text(data['category'] ?? '',
                                     style: const TextStyle(
-                                        color: _textSecondary,
-                                        fontSize: 12)),
+                                        color: _textSecondary, fontSize: 12)),
                                 const SizedBox(height: 2),
                                 Text(data['description'] ?? '',
                                     style: const TextStyle(
-                                        color: _textSecondary,
-                                        fontSize: 12),
+                                        color: _textSecondary, fontSize: 12),
                                     maxLines: 1,
                                     overflow: TextOverflow.ellipsis),
                               ],

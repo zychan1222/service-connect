@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'booking_screen.dart';
+import 'provider_profile_screen.dart';
 
 class ProviderListScreen extends StatelessWidget {
   final String category;
@@ -26,14 +26,14 @@ class ProviderListScreen extends StatelessWidget {
         iconTheme: const IconThemeData(color: Colors.white),
       ),
       body: FutureBuilder<List<Map<String, dynamic>>>(
-        future: _fetchServicesByCategory(category),
+        future: _fetchProvidersByCategory(category),
         builder: (context, snapshot) {
           if (!snapshot.hasData) {
             return const Center(
                 child: CircularProgressIndicator(color: _primary));
           }
-          final services = snapshot.data!;
-          if (services.isEmpty) {
+          final providers = snapshot.data!;
+          if (providers.isEmpty) {
             return Center(
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.center,
@@ -56,28 +56,26 @@ class ProviderListScreen extends StatelessWidget {
                           fontWeight: FontWeight.w600)),
                   const SizedBox(height: 4),
                   const Text('Check back soon',
-                      style:
-                          TextStyle(color: _textSecondary, fontSize: 13)),
+                      style: TextStyle(
+                          color: _textSecondary, fontSize: 13)),
                 ],
               ),
             );
           }
           return ListView.builder(
             padding: const EdgeInsets.all(20),
-            itemCount: services.length,
+            itemCount: providers.length,
             itemBuilder: (context, index) {
-              final data = services[index];
+              final data = providers[index];
               return GestureDetector(
                 onTap: () => Navigator.push(
                   context,
                   MaterialPageRoute(
-                    builder: (_) => BookingScreen(
+                    builder: (_) => ProviderProfileScreen(
                       providerId: data['providerId'],
                       providerName: data['providerName'],
-                      category: data['category'],
-                      price: (data['price'] as num).toDouble(),
-                      serviceId: data['serviceId'],
-                      serviceDescription: data['description'],
+                      providerRating:
+                          (data['providerRating'] as num).toDouble(),
                     ),
                   ),
                 ),
@@ -106,7 +104,8 @@ class ProviderListScreen extends StatelessWidget {
                         ),
                         child: Center(
                           child: Text(
-                            (data['providerName'] ?? 'P')[0].toUpperCase(),
+                            (data['providerName'] ?? 'P')[0]
+                                .toUpperCase(),
                             style: const TextStyle(
                                 color: Colors.white,
                                 fontSize: 20,
@@ -125,11 +124,12 @@ class ProviderListScreen extends StatelessWidget {
                                     fontSize: 15,
                                     color: _textPrimary)),
                             const SizedBox(height: 3),
-                            Text(data['description'] ?? '',
-                                style: const TextStyle(
-                                    color: _textSecondary, fontSize: 12),
-                                maxLines: 2,
-                                overflow: TextOverflow.ellipsis),
+                            Text(
+                              '${data['serviceCount']} service${data['serviceCount'] == 1 ? '' : 's'} available',
+                              style: const TextStyle(
+                                  color: _textSecondary,
+                                  fontSize: 12),
+                            ),
                             const SizedBox(height: 6),
                             Row(
                               children: [
@@ -137,12 +137,20 @@ class ProviderListScreen extends StatelessWidget {
                                     color: Colors.amber, size: 14),
                                 const SizedBox(width: 3),
                                 Text(
-                                    (data['providerRating'] ?? 0.0)
-                                        .toStringAsFixed(1),
-                                    style: const TextStyle(
-                                        fontSize: 12,
-                                        fontWeight: FontWeight.w600,
-                                        color: _textPrimary)),
+                                  (data['providerRating'] ?? 0.0)
+                                      .toStringAsFixed(1),
+                                  style: const TextStyle(
+                                      fontSize: 12,
+                                      fontWeight: FontWeight.w600,
+                                      color: _textPrimary),
+                                ),
+                                const SizedBox(width: 8),
+                                Text(
+                                  '${data['bookingCount']} bookings',
+                                  style: const TextStyle(
+                                      fontSize: 12,
+                                      color: _textSecondary),
+                                ),
                               ],
                             ),
                           ],
@@ -152,25 +160,28 @@ class ProviderListScreen extends StatelessWidget {
                       Column(
                         crossAxisAlignment: CrossAxisAlignment.end,
                         children: [
-                          Text('RM ${data['price']}',
-                              style: const TextStyle(
-                                  color: _primary,
-                                  fontWeight: FontWeight.w800,
-                                  fontSize: 16)),
+                          Text(
+                            'From RM ${data['minPrice']}',
+                            style: const TextStyle(
+                                color: _primary,
+                                fontWeight: FontWeight.w800,
+                                fontSize: 13),
+                          ),
                           const Text('/hr',
                               style: TextStyle(
-                                  color: _textSecondary, fontSize: 11)),
+                                  color: _textSecondary,
+                                  fontSize: 11)),
                           const SizedBox(height: 8),
                           Container(
                             padding: const EdgeInsets.symmetric(
                                 horizontal: 10, vertical: 5),
                             decoration: BoxDecoration(
-                              color: _primary,
+                              color: _primary.withOpacity(0.08),
                               borderRadius: BorderRadius.circular(20),
                             ),
-                            child: const Text('Book',
+                            child: const Text('View Profile',
                                 style: TextStyle(
-                                    color: Colors.white,
+                                    color: _primary,
                                     fontSize: 11,
                                     fontWeight: FontWeight.w600)),
                           ),
@@ -187,7 +198,7 @@ class ProviderListScreen extends StatelessWidget {
     );
   }
 
-  Future<List<Map<String, dynamic>>> _fetchServicesByCategory(
+  Future<List<Map<String, dynamic>>> _fetchProvidersByCategory(
       String category) async {
     final providersSnap = await FirebaseFirestore.instance
         .collection('providers')
@@ -206,16 +217,21 @@ class ProviderListScreen extends StatelessWidget {
           .where('isActive', isEqualTo: true)
           .get();
 
-      for (final serviceDoc in servicesSnap.docs) {
-        final serviceData = serviceDoc.data();
-        results.add({
-          ...serviceData,
-          'serviceId': serviceDoc.id,
-          'providerId': providerDoc.id,
-          'providerName': providerData['name'] ?? '',
-          'providerRating': providerData['rating'] ?? 0.0,
-        });
-      }
+      if (servicesSnap.docs.isEmpty) continue;
+
+      final prices = servicesSnap.docs
+          .map((d) => (d.data()['price'] as num).toDouble())
+          .toList();
+      final minPrice = prices.reduce((a, b) => a < b ? a : b);
+
+      results.add({
+        'providerId': providerDoc.id,
+        'providerName': providerData['name'] ?? '',
+        'providerRating': providerData['rating'] ?? 0.0,
+        'bookingCount': providerData['bookingCount'] ?? 0,
+        'serviceCount': servicesSnap.docs.length,
+        'minPrice': minPrice,
+      });
     }
     return results;
   }
