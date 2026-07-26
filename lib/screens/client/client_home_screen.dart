@@ -3,6 +3,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import '../auth/login_screen.dart';
 import 'client_bookings_screen.dart';
+import 'client_profile_screen.dart';
 import 'recommendations_screen.dart';
 import 'provider_list_screen.dart';
 import 'provider_profile_screen.dart';
@@ -91,6 +92,7 @@ class _ClientHomeScreenState extends State<ClientHomeScreen> {
           const RecommendationsScreen(),
           const ClientBookingsScreen(),
           const NotificationsScreen(),
+          ClientProfileScreen(),
         ],
       ),
       bottomNavigationBar: _buildBottomNav(user),
@@ -133,6 +135,10 @@ class _ClientHomeScreenState extends State<ClientHomeScreen> {
                 label: 'Notifications',
                 userId: user?.uid ?? '',
               ),
+              _navItem(
+                index: 4,
+                icon: Icons.person_rounded,
+                label: 'Profile'),
             ],
           ),
         ),
