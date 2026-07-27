@@ -81,6 +81,7 @@ class _ProviderHomeScreenState extends State<ProviderHomeScreen> {
           const ProviderServicesScreen(),
           const ProviderReviewsScreen(),
           const NotificationsScreen(),
+          _ProviderProfileTab(user: user),
         ],
       ),
       bottomNavigationBar: _buildBottomNav(user),
@@ -123,6 +124,10 @@ class _ProviderHomeScreenState extends State<ProviderHomeScreen> {
                 label: 'Notifications',
                 userId: user?.uid ?? '',
               ),
+              _navItem(
+                  index: 4,
+                  icon: Icons.person_rounded,
+                  label: 'Profile'),
             ],
           ),
         ),
@@ -256,14 +261,28 @@ class _ProviderHomeScreenState extends State<ProviderHomeScreen> {
   }
 }
 
-class _BookingsTab extends StatelessWidget {
+// ── Bookings Tab ─────────────────────────────────────────────────────────────
+class _BookingsTab extends StatefulWidget {
   final user;
   const _BookingsTab({required this.user});
+
+  @override
+  State<_BookingsTab> createState() => _BookingsTabState();
+}
+
+class _BookingsTabState extends State<_BookingsTab> {
+  String _selectedFilter = 'All';
+  String _searchQuery = '';
+  final _searchController = TextEditingController();
 
   static const _primary = Color(0xFF2563EB);
   static const _bg = Color(0xFFF7F8FA);
   static const _textPrimary = Color(0xFF0F172A);
   static const _textSecondary = Color(0xFF64748B);
+
+  final List<String> _filters = [
+    'All', 'Pending', 'Accepted', 'Completed', 'Declined', 'Cancelled'
+  ];
 
   Color _statusColor(String status) {
     switch (status) {
@@ -307,12 +326,40 @@ class _BookingsTab extends StatelessWidget {
                 color: color)),
       );
 
+  List<QueryDocumentSnapshot> _filterBookings(
+      List<QueryDocumentSnapshot> bookings) {
+    return bookings.where((doc) {
+      final data = doc.data() as Map<String, dynamic>;
+      final status = data['status'] ?? 'pending';
+      final clientName =
+          (data['clientName'] ?? '').toLowerCase();
+      final category = (data['category'] ?? '').toLowerCase();
+      final q = _searchQuery.toLowerCase();
+
+      final matchesFilter = _selectedFilter == 'All' ||
+          status.toLowerCase() ==
+              _selectedFilter.toLowerCase();
+      final matchesSearch = q.isEmpty ||
+          clientName.contains(q) ||
+          category.contains(q);
+
+      return matchesFilter && matchesSearch;
+    }).toList();
+  }
+
+  @override
+  void dispose() {
+    _searchController.dispose();
+    super.dispose();
+  }
+
   @override
   Widget build(BuildContext context) {
     return SingleChildScrollView(
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
+          // Hero header
           Container(
             width: double.infinity,
             padding: const EdgeInsets.fromLTRB(24, 24, 24, 28),
@@ -323,52 +370,147 @@ class _BookingsTab extends StatelessWidget {
                 bottomRight: Radius.circular(28),
               ),
             ),
-            child: FutureBuilder<DocumentSnapshot>(
-              future: FirebaseFirestore.instance
-                  .collection('users')
-                  .doc(user?.uid)
-                  .get(),
-              builder: (context, snapshot) {
-                final name =
-                    snapshot.data?.get('name') ?? 'Provider';
-                return Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text('Welcome, $name',
-                        style: const TextStyle(
-                          color: Colors.white,
-                          fontSize: 28,
-                          fontWeight: FontWeight.w800,
-                          letterSpacing: -0.8,
-                          height: 1.2,
-                        )),
-                    const SizedBox(height: 4),
-                    const Text('Manage your bookings below.',
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                FutureBuilder<DocumentSnapshot>(
+                  future: FirebaseFirestore.instance
+                      .collection('users')
+                      .doc(widget.user?.uid)
+                      .get(),
+                  builder: (context, snapshot) {
+                    final name =
+                        snapshot.data?.get('name') ?? 'Provider';
+                    return Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text('Welcome, $name',
+                            style: const TextStyle(
+                              color: Colors.white,
+                              fontSize: 28,
+                              fontWeight: FontWeight.w800,
+                              letterSpacing: -0.8,
+                              height: 1.2,
+                            )),
+                        const SizedBox(height: 4),
+                        const Text('Manage your bookings below.',
+                            style: TextStyle(
+                                color: Colors.white70,
+                                fontSize: 14)),
+                      ],
+                    );
+                  },
+                ),
+                const SizedBox(height: 20),
+
+                // Search bar
+                Container(
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(14),
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.black.withOpacity(0.1),
+                        blurRadius: 12,
+                        offset: const Offset(0, 4),
+                      ),
+                    ],
+                  ),
+                  child: TextField(
+                    controller: _searchController,
+                    onChanged: (val) =>
+                        setState(() => _searchQuery = val),
+                    style: const TextStyle(
+                        fontSize: 14, color: _textPrimary),
+                    decoration: InputDecoration(
+                      hintText: 'Search by client or category...',
+                      hintStyle: const TextStyle(
+                          color: _textSecondary, fontSize: 14),
+                      prefixIcon: const Icon(Icons.search_rounded,
+                          color: _textSecondary, size: 20),
+                      suffixIcon: _searchQuery.isNotEmpty
+                          ? IconButton(
+                              icon: const Icon(Icons.close_rounded,
+                                  color: _textSecondary, size: 18),
+                              onPressed: () {
+                                _searchController.clear();
+                                setState(() => _searchQuery = '');
+                              },
+                            )
+                          : null,
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(14),
+                        borderSide: BorderSide.none,
+                      ),
+                      filled: true,
+                      fillColor: Colors.white,
+                      contentPadding: const EdgeInsets.symmetric(
+                          horizontal: 16, vertical: 14),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+
+          const SizedBox(height: 16),
+
+          // Filter chips
+          SizedBox(
+            height: 40,
+            child: ListView.separated(
+              scrollDirection: Axis.horizontal,
+              padding: const EdgeInsets.symmetric(horizontal: 20),
+              itemCount: _filters.length,
+              separatorBuilder: (_, __) =>
+                  const SizedBox(width: 8),
+              itemBuilder: (context, index) {
+                final filter = _filters[index];
+                final isSelected = _selectedFilter == filter;
+                return GestureDetector(
+                  onTap: () =>
+                      setState(() => _selectedFilter = filter),
+                  child: AnimatedContainer(
+                    duration: const Duration(milliseconds: 200),
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: 16, vertical: 8),
+                    decoration: BoxDecoration(
+                      color: isSelected ? _primary : Colors.white,
+                      borderRadius: BorderRadius.circular(20),
+                      border: Border.all(
+                        color: isSelected
+                            ? _primary
+                            : const Color(0xFFE2E8F0),
+                      ),
+                      boxShadow: isSelected
+                          ? [
+                              BoxShadow(
+                                color: _primary.withOpacity(0.2),
+                                blurRadius: 8,
+                                offset: const Offset(0, 2),
+                              )
+                            ]
+                          : [],
+                    ),
+                    child: Text(filter,
                         style: TextStyle(
-                            color: Colors.white70, fontSize: 14)),
-                  ],
+                            fontSize: 13,
+                            fontWeight: FontWeight.w600,
+                            color: isSelected
+                                ? Colors.white
+                                : _textSecondary)),
+                  ),
                 );
               },
             ),
           ),
 
-          const SizedBox(height: 28),
-
-          const Padding(
-            padding: EdgeInsets.symmetric(horizontal: 24),
-            child: Text('Booking Requests',
-                style: TextStyle(
-                    fontSize: 16,
-                    fontWeight: FontWeight.w700,
-                    color: _textPrimary,
-                    letterSpacing: -0.3)),
-          ),
-          const SizedBox(height: 14),
+          const SizedBox(height: 16),
 
           StreamBuilder<QuerySnapshot>(
             stream: FirebaseFirestore.instance
                 .collection('bookings')
-                .where('providerId', isEqualTo: user?.uid)
+                .where('providerId', isEqualTo: widget.user?.uid)
                 .snapshots(),
             builder: (context, snapshot) {
               if (!snapshot.hasData) {
@@ -379,8 +521,11 @@ class _BookingsTab extends StatelessWidget {
                           color: _primary)),
                 );
               }
-              final bookings = snapshot.data!.docs;
-              if (bookings.isEmpty) {
+
+              final filtered =
+                  _filterBookings(snapshot.data!.docs);
+
+              if (filtered.isEmpty) {
                 return Center(
                   child: Padding(
                     padding: const EdgeInsets.all(32),
@@ -397,485 +542,559 @@ class _BookingsTab extends StatelessWidget {
                               color: _primary, size: 32),
                         ),
                         const SizedBox(height: 16),
-                        const Text('No bookings yet',
-                            style: TextStyle(
-                                color: _textPrimary,
-                                fontWeight: FontWeight.w600,
-                                fontSize: 15)),
+                        Text(
+                          _searchQuery.isNotEmpty ||
+                                  _selectedFilter != 'All'
+                              ? 'No bookings match your filter'
+                              : 'No bookings yet',
+                          style: const TextStyle(
+                              color: _textPrimary,
+                              fontWeight: FontWeight.w600,
+                              fontSize: 15),
+                        ),
                         const SizedBox(height: 4),
-                        const Text(
-                            'Bookings will appear here when clients request your services',
-                            textAlign: TextAlign.center,
-                            style: TextStyle(
-                                color: _textSecondary,
-                                fontSize: 13)),
+                        Text(
+                          _searchQuery.isNotEmpty ||
+                                  _selectedFilter != 'All'
+                              ? 'Try a different filter or search term'
+                              : 'Bookings will appear here when clients request your services',
+                          textAlign: TextAlign.center,
+                          style: const TextStyle(
+                              color: _textSecondary, fontSize: 13),
+                        ),
                       ],
                     ),
                   ),
                 );
               }
-              return ListView.builder(
-                shrinkWrap: true,
-                physics: const NeverScrollableScrollPhysics(),
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 24),
-                itemCount: bookings.length,
-                itemBuilder: (context, index) {
-                  final data = bookings[index].data()
-                      as Map<String, dynamic>;
-                  final status = data['status'] ?? 'pending';
-                  final urgency = data['urgency'] ?? 'Normal';
-                  final budgetMin = data['budgetMin'] ?? 0;
-                  final budgetMax = data['budgetMax'] ?? 0;
-                  final hasBudget =
-                      budgetMin > 0 || budgetMax > 0;
 
-                  return Container(
-                    margin: const EdgeInsets.only(bottom: 12),
-                    decoration: BoxDecoration(
-                      color: Colors.white,
-                      borderRadius: BorderRadius.circular(16),
-                      border: urgency == 'Emergency'
-                          ? Border.all(
-                              color: Colors.red.withOpacity(0.3),
-                              width: 1.5)
-                          : urgency == 'Urgent'
-                              ? Border.all(
-                                  color: const Color(0xFFF59E0B)
-                                      .withOpacity(0.3),
-                                  width: 1.5)
-                              : null,
-                      boxShadow: [
-                        BoxShadow(
-                          color: Colors.black.withOpacity(0.05),
-                          blurRadius: 12,
-                          offset: const Offset(0, 4),
-                        ),
-                      ],
+              return Padding(
+                padding: const EdgeInsets.fromLTRB(20, 0, 20, 4),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      '${filtered.length} booking${filtered.length == 1 ? '' : 's'}',
+                      style: const TextStyle(
+                          fontSize: 13,
+                          color: _textSecondary,
+                          fontWeight: FontWeight.w500),
                     ),
-                    child: Padding(
-                      padding: const EdgeInsets.all(16),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          // Client info + status
-                          Row(
-                            mainAxisAlignment:
-                                MainAxisAlignment.spaceBetween,
-                            children: [
-                              Row(
-                                children: [
-                                  Container(
-                                    width: 40,
-                                    height: 40,
-                                    decoration: BoxDecoration(
-                                      color:
-                                          _primary.withOpacity(0.1),
-                                      borderRadius:
-                                          BorderRadius.circular(12),
+                    const SizedBox(height: 12),
+                    ListView.builder(
+                      shrinkWrap: true,
+                      physics: const NeverScrollableScrollPhysics(),
+                      itemCount: filtered.length,
+                      itemBuilder: (context, index) {
+                        final data = filtered[index].data()
+                            as Map<String, dynamic>;
+                        final status = data['status'] ?? 'pending';
+                        final urgency =
+                            data['urgency'] ?? 'Normal';
+                        final budgetMin = data['budgetMin'] ?? 0;
+                        final budgetMax = data['budgetMax'] ?? 0;
+                        final hasBudget =
+                            budgetMin > 0 || budgetMax > 0;
+
+                        return Container(
+                          margin: const EdgeInsets.only(bottom: 12),
+                          decoration: BoxDecoration(
+                            color: Colors.white,
+                            borderRadius: BorderRadius.circular(16),
+                            border: urgency == 'Emergency'
+                                ? Border.all(
+                                    color:
+                                        Colors.red.withOpacity(0.3),
+                                    width: 1.5)
+                                : urgency == 'Urgent'
+                                    ? Border.all(
+                                        color: const Color(0xFFF59E0B)
+                                            .withOpacity(0.3),
+                                        width: 1.5)
+                                    : null,
+                            boxShadow: [
+                              BoxShadow(
+                                color:
+                                    Colors.black.withOpacity(0.05),
+                                blurRadius: 12,
+                                offset: const Offset(0, 4),
+                              ),
+                            ],
+                          ),
+                          child: Padding(
+                            padding: const EdgeInsets.all(16),
+                            child: Column(
+                              crossAxisAlignment:
+                                  CrossAxisAlignment.start,
+                              children: [
+                                // Client info + status
+                                Row(
+                                  mainAxisAlignment:
+                                      MainAxisAlignment.spaceBetween,
+                                  children: [
+                                    Row(
+                                      children: [
+                                        Container(
+                                          width: 40,
+                                          height: 40,
+                                          decoration: BoxDecoration(
+                                            color: _primary
+                                                .withOpacity(0.1),
+                                            borderRadius:
+                                                BorderRadius.circular(
+                                                    12),
+                                          ),
+                                          child: Center(
+                                            child: Text(
+                                              (data['clientName'] ??
+                                                      'C')[0]
+                                                  .toUpperCase(),
+                                              style: const TextStyle(
+                                                  color: _primary,
+                                                  fontWeight:
+                                                      FontWeight.w700,
+                                                  fontSize: 16),
+                                            ),
+                                          ),
+                                        ),
+                                        const SizedBox(width: 12),
+                                        Column(
+                                          crossAxisAlignment:
+                                              CrossAxisAlignment
+                                                  .start,
+                                          children: [
+                                            Text(
+                                                data['clientName'] ??
+                                                    'Client',
+                                                style: const TextStyle(
+                                                    fontWeight:
+                                                        FontWeight.w700,
+                                                    fontSize: 14,
+                                                    color:
+                                                        _textPrimary)),
+                                            Text(
+                                                data['category'] ?? '',
+                                                style: const TextStyle(
+                                                    color:
+                                                        _textSecondary,
+                                                    fontSize: 12)),
+                                          ],
+                                        ),
+                                      ],
                                     ),
-                                    child: Center(
-                                      child: Text(
-                                        (data['clientName'] ??
-                                                'C')[0]
-                                            .toUpperCase(),
-                                        style: const TextStyle(
-                                            color: _primary,
-                                            fontWeight:
-                                                FontWeight.w700,
-                                            fontSize: 16),
+                                    Container(
+                                      padding:
+                                          const EdgeInsets.symmetric(
+                                              horizontal: 10,
+                                              vertical: 5),
+                                      decoration: BoxDecoration(
+                                        color: _statusBg(status),
+                                        borderRadius:
+                                            BorderRadius.circular(20),
                                       ),
-                                    ),
-                                  ),
-                                  const SizedBox(width: 12),
-                                  Column(
-                                    crossAxisAlignment:
-                                        CrossAxisAlignment.start,
-                                    children: [
-                                      Text(
-                                          data['clientName'] ??
-                                              'Client',
-                                          style: const TextStyle(
+                                      child: Text(
+                                          status.toUpperCase(),
+                                          style: TextStyle(
+                                              fontSize: 10,
                                               fontWeight:
                                                   FontWeight.w700,
-                                              fontSize: 14,
-                                              color: _textPrimary)),
-                                      Text(data['category'] ?? '',
+                                              color:
+                                                  _statusColor(status),
+                                              letterSpacing: 0.5)),
+                                    ),
+                                  ],
+                                ),
+
+                                const SizedBox(height: 12),
+
+                                // Date & time
+                                Container(
+                                  padding: const EdgeInsets.all(12),
+                                  decoration: BoxDecoration(
+                                    color: _bg,
+                                    borderRadius:
+                                        BorderRadius.circular(10),
+                                  ),
+                                  child: Row(
+                                    children: [
+                                      const Icon(
+                                          Icons.calendar_today_rounded,
+                                          size: 14,
+                                          color: _textSecondary),
+                                      const SizedBox(width: 6),
+                                      Text(data['date'] ?? '',
                                           style: const TextStyle(
                                               color: _textSecondary,
-                                              fontSize: 12)),
+                                              fontSize: 13)),
+                                      const SizedBox(width: 16),
+                                      const Icon(
+                                          Icons.access_time_rounded,
+                                          size: 14,
+                                          color: _textSecondary),
+                                      const SizedBox(width: 6),
+                                      Text(data['time'] ?? '',
+                                          style: const TextStyle(
+                                              color: _textSecondary,
+                                              fontSize: 13)),
+                                    ],
+                                  ),
+                                ),
+
+                                const SizedBox(height: 10),
+
+                                // Tags
+                                Wrap(
+                                  spacing: 6,
+                                  runSpacing: 6,
+                                  children: [
+                                    _tag(
+                                      urgency,
+                                      _urgencyColor(urgency)
+                                          .withOpacity(0.12),
+                                      _urgencyColor(urgency),
+                                    ),
+                                    if ((data['estimatedDuration'] ??
+                                            '')
+                                        .isNotEmpty)
+                                      _tag(
+                                        data['estimatedDuration'],
+                                        _primary.withOpacity(0.08),
+                                        _primary,
+                                      ),
+                                    if ((data['siteType'] ?? '')
+                                        .isNotEmpty)
+                                      _tag(
+                                        data['siteType'],
+                                        const Color(0xFFF1F5F9),
+                                        _textSecondary,
+                                      ),
+                                    if (data['providerSupplyParts'] ==
+                                        true)
+                                      _tag(
+                                        'Parts required',
+                                        const Color(0xFFFFFBEB),
+                                        const Color(0xFFF59E0B),
+                                      ),
+                                  ],
+                                ),
+
+                                // Budget
+                                if (hasBudget) ...[
+                                  const SizedBox(height: 10),
+                                  Row(
+                                    children: [
+                                      const Icon(
+                                          Icons
+                                              .account_balance_wallet_rounded,
+                                          size: 13,
+                                          color: _textSecondary),
+                                      const SizedBox(width: 6),
+                                      Text(
+                                        'Client budget: RM $budgetMin — RM $budgetMax',
+                                        style: const TextStyle(
+                                            color: _textSecondary,
+                                            fontSize: 12),
+                                      ),
                                     ],
                                   ),
                                 ],
-                              ),
-                              Container(
-                                padding: const EdgeInsets.symmetric(
-                                    horizontal: 10, vertical: 5),
-                                decoration: BoxDecoration(
-                                  color: _statusBg(status),
-                                  borderRadius:
-                                      BorderRadius.circular(20),
-                                ),
-                                child: Text(status.toUpperCase(),
-                                    style: TextStyle(
-                                        fontSize: 10,
-                                        fontWeight: FontWeight.w700,
-                                        color: _statusColor(status),
-                                        letterSpacing: 0.5)),
-                              ),
-                            ],
-                          ),
 
-                          const SizedBox(height: 12),
-
-                          // Date & time
-                          Container(
-                            padding: const EdgeInsets.all(12),
-                            decoration: BoxDecoration(
-                              color: _bg,
-                              borderRadius: BorderRadius.circular(10),
-                            ),
-                            child: Row(
-                              children: [
-                                const Icon(
-                                    Icons.calendar_today_rounded,
-                                    size: 14,
-                                    color: _textSecondary),
-                                const SizedBox(width: 6),
-                                Text(data['date'] ?? '',
-                                    style: const TextStyle(
-                                        color: _textSecondary,
-                                        fontSize: 13)),
-                                const SizedBox(width: 16),
-                                const Icon(Icons.access_time_rounded,
-                                    size: 14,
-                                    color: _textSecondary),
-                                const SizedBox(width: 6),
-                                Text(data['time'] ?? '',
-                                    style: const TextStyle(
-                                        color: _textSecondary,
-                                        fontSize: 13)),
-                              ],
-                            ),
-                          ),
-
-                          const SizedBox(height: 10),
-
-                          // Tags
-                          Wrap(
-                            spacing: 6,
-                            runSpacing: 6,
-                            children: [
-                              _tag(
-                                urgency,
-                                _urgencyColor(urgency)
-                                    .withOpacity(0.12),
-                                _urgencyColor(urgency),
-                              ),
-                              if ((data['estimatedDuration'] ?? '')
-                                  .isNotEmpty)
-                                _tag(
-                                  data['estimatedDuration'],
-                                  _primary.withOpacity(0.08),
-                                  _primary,
-                                ),
-                              if ((data['siteType'] ?? '').isNotEmpty)
-                                _tag(
-                                  data['siteType'],
-                                  const Color(0xFFF1F5F9),
-                                  _textSecondary,
-                                ),
-                              if (data['providerSupplyParts'] == true)
-                                _tag(
-                                  'Parts required',
-                                  const Color(0xFFFFFBEB),
-                                  const Color(0xFFF59E0B),
-                                ),
-                            ],
-                          ),
-
-                          // Budget
-                          if (hasBudget) ...[
-                            const SizedBox(height: 10),
-                            Row(
-                              children: [
-                                const Icon(
-                                    Icons
-                                        .account_balance_wallet_rounded,
-                                    size: 13,
-                                    color: _textSecondary),
-                                const SizedBox(width: 6),
-                                Text(
-                                  'Client budget: RM $budgetMin — RM $budgetMax',
-                                  style: const TextStyle(
-                                      color: _textSecondary,
-                                      fontSize: 12),
-                                ),
-                              ],
-                            ),
-                          ],
-
-                          // Job description
-                          if ((data['jobDescription'] ?? '')
-                              .isNotEmpty) ...[
-                            const SizedBox(height: 10),
-                            Container(
-                              width: double.infinity,
-                              padding: const EdgeInsets.all(12),
-                              decoration: BoxDecoration(
-                                color: _bg,
-                                borderRadius:
-                                    BorderRadius.circular(10),
-                                border: Border.all(
-                                    color: const Color(0xFFE2E8F0)),
-                              ),
-                              child: Column(
-                                crossAxisAlignment:
-                                    CrossAxisAlignment.start,
-                                children: [
-                                  const Text('Job Description',
-                                      style: TextStyle(
-                                          fontSize: 11,
-                                          fontWeight: FontWeight.w600,
-                                          color: _textSecondary)),
-                                  const SizedBox(height: 4),
-                                  Text(data['jobDescription'],
-                                      style: const TextStyle(
-                                          color: _textPrimary,
-                                          fontSize: 13,
-                                          height: 1.4)),
+                                // Job description
+                                if ((data['jobDescription'] ?? '')
+                                    .isNotEmpty) ...[
+                                  const SizedBox(height: 10),
+                                  Container(
+                                    width: double.infinity,
+                                    padding: const EdgeInsets.all(12),
+                                    decoration: BoxDecoration(
+                                      color: _bg,
+                                      borderRadius:
+                                          BorderRadius.circular(10),
+                                      border: Border.all(
+                                          color: const Color(
+                                              0xFFE2E8F0)),
+                                    ),
+                                    child: Column(
+                                      crossAxisAlignment:
+                                          CrossAxisAlignment.start,
+                                      children: [
+                                        const Text('Job Description',
+                                            style: TextStyle(
+                                                fontSize: 11,
+                                                fontWeight:
+                                                    FontWeight.w600,
+                                                color:
+                                                    _textSecondary)),
+                                        const SizedBox(height: 4),
+                                        Text(data['jobDescription'],
+                                            style: const TextStyle(
+                                                color: _textPrimary,
+                                                fontSize: 13,
+                                                height: 1.4)),
+                                      ],
+                                    ),
+                                  ),
                                 ],
-                              ),
-                            ),
-                          ],
 
-                          // Pending — accept/decline
-                          if (status == 'pending') ...[
-                            const SizedBox(height: 12),
-                            Row(
-                              children: [
-                                Expanded(
-                                  child: ElevatedButton(
-                                    onPressed: () async {
-                                      await FirebaseFirestore.instance
-                                          .collection('bookings')
-                                          .doc(bookings[index].id)
-                                          .update(
-                                              {'status': 'accepted'});
-                                      await NotificationService
-                                          .sendNotification(
-                                        toUserId: data['clientId'],
-                                        title: 'Booking Accepted',
-                                        body:
-                                            '${data['providerName'] ?? 'Your provider'} has accepted your booking on ${data['date']}',
-                                        type: 'booking_accepted',
-                                        bookingId: bookings[index].id,
-                                      );
-                                    },
-                                    style: ElevatedButton.styleFrom(
-                                      backgroundColor:
-                                          const Color(0xFF10B981),
-                                      elevation: 0,
-                                      shape: RoundedRectangleBorder(
-                                          borderRadius:
-                                              BorderRadius.circular(
-                                                  10)),
-                                    ),
-                                    child: const Text('Accept',
-                                        style: TextStyle(
-                                            color: Colors.white,
-                                            fontWeight:
-                                                FontWeight.w600)),
+                                // Pending — accept/decline
+                                if (status == 'pending') ...[
+                                  const SizedBox(height: 12),
+                                  Row(
+                                    children: [
+                                      Expanded(
+                                        child: ElevatedButton(
+                                          onPressed: () async {
+                                            await FirebaseFirestore
+                                                .instance
+                                                .collection('bookings')
+                                                .doc(filtered[index].id)
+                                                .update({
+                                              'status': 'accepted'
+                                            });
+                                            await NotificationService
+                                                .sendNotification(
+                                              toUserId: data['clientId'],
+                                              title: 'Booking Accepted',
+                                              body:
+                                                  '${data['providerName'] ?? 'Your provider'} has accepted your booking on ${data['date']}',
+                                              type: 'booking_accepted',
+                                              bookingId:
+                                                  filtered[index].id,
+                                            );
+                                          },
+                                          style:
+                                              ElevatedButton.styleFrom(
+                                            backgroundColor:
+                                                const Color(0xFF10B981),
+                                            elevation: 0,
+                                            shape: RoundedRectangleBorder(
+                                                borderRadius:
+                                                    BorderRadius.circular(
+                                                        10)),
+                                          ),
+                                          child: const Text('Accept',
+                                              style: TextStyle(
+                                                  color: Colors.white,
+                                                  fontWeight:
+                                                      FontWeight.w600)),
+                                        ),
+                                      ),
+                                      const SizedBox(width: 8),
+                                      Expanded(
+                                        child: OutlinedButton(
+                                          onPressed: () async {
+                                            await FirebaseFirestore
+                                                .instance
+                                                .collection('bookings')
+                                                .doc(filtered[index].id)
+                                                .update({
+                                              'status': 'declined'
+                                            });
+                                            await NotificationService
+                                                .sendNotification(
+                                              toUserId: data['clientId'],
+                                              title: 'Booking Declined',
+                                              body:
+                                                  '${data['providerName'] ?? 'Your provider'} is unavailable on ${data['date']}.',
+                                              type: 'booking_declined',
+                                              bookingId:
+                                                  filtered[index].id,
+                                            );
+                                          },
+                                          style:
+                                              OutlinedButton.styleFrom(
+                                            foregroundColor: Colors.red,
+                                            side: const BorderSide(
+                                                color:
+                                                    Color(0xFFE2E8F0)),
+                                            shape: RoundedRectangleBorder(
+                                                borderRadius:
+                                                    BorderRadius.circular(
+                                                        10)),
+                                          ),
+                                          child: const Text('Decline',
+                                              style: TextStyle(
+                                                  fontWeight:
+                                                      FontWeight.w600)),
+                                        ),
+                                      ),
+                                    ],
                                   ),
-                                ),
-                                const SizedBox(width: 8),
-                                Expanded(
-                                  child: OutlinedButton(
-                                    onPressed: () async {
-                                      await FirebaseFirestore.instance
-                                          .collection('bookings')
-                                          .doc(bookings[index].id)
-                                          .update(
-                                              {'status': 'declined'});
-                                      await NotificationService
-                                          .sendNotification(
-                                        toUserId: data['clientId'],
-                                        title: 'Booking Declined',
-                                        body:
-                                            '${data['providerName'] ?? 'Your provider'} is unavailable on ${data['date']}.',
-                                        type: 'booking_declined',
-                                        bookingId: bookings[index].id,
-                                      );
-                                    },
-                                    style: OutlinedButton.styleFrom(
-                                      foregroundColor: Colors.red,
-                                      side: const BorderSide(
-                                          color: Color(0xFFE2E8F0)),
-                                      shape: RoundedRectangleBorder(
-                                          borderRadius:
-                                              BorderRadius.circular(
-                                                  10)),
+                                ],
+
+                                // Accepted — mark complete + cancel
+                                if (status == 'accepted') ...[
+                                  const SizedBox(height: 12),
+                                  SizedBox(
+                                    width: double.infinity,
+                                    child: ElevatedButton.icon(
+                                      onPressed: () => showDialog(
+                                        context: context,
+                                        builder: (_) => AlertDialog(
+                                          shape: RoundedRectangleBorder(
+                                              borderRadius:
+                                                  BorderRadius.circular(
+                                                      20)),
+                                          title: const Text(
+                                              'Mark as completed?',
+                                              style: TextStyle(
+                                                  fontWeight:
+                                                      FontWeight.w700)),
+                                          content: const Text(
+                                              'This confirms the job is done. The client will be notified and can leave a review.'),
+                                          actions: [
+                                            TextButton(
+                                              onPressed: () =>
+                                                  Navigator.pop(context),
+                                              child: const Text(
+                                                  'Not yet'),
+                                            ),
+                                            TextButton(
+                                              onPressed: () async {
+                                                Navigator.pop(context);
+                                                await FirebaseFirestore
+                                                    .instance
+                                                    .collection('bookings')
+                                                    .doc(filtered[index]
+                                                        .id)
+                                                    .update({
+                                                  'status': 'completed'
+                                                });
+                                                await NotificationService
+                                                    .sendNotification(
+                                                  toUserId:
+                                                      data['clientId'],
+                                                  title: 'Job Completed',
+                                                  body:
+                                                      '${data['providerName'] ?? 'Your provider'} has marked the job on ${data['date']} as completed. Leave a review!',
+                                                  type:
+                                                      'booking_completed',
+                                                  bookingId:
+                                                      filtered[index].id,
+                                                );
+                                              },
+                                              child: const Text(
+                                                  'Mark complete',
+                                                  style: TextStyle(
+                                                      color: Color(
+                                                          0xFF2563EB),
+                                                      fontWeight:
+                                                          FontWeight
+                                                              .w600)),
+                                            ),
+                                          ],
+                                        ),
+                                      ),
+                                      icon: const Icon(
+                                          Icons.check_circle_rounded,
+                                          color: Colors.white,
+                                          size: 16),
+                                      label: const Text(
+                                          'Mark as Completed',
+                                          style: TextStyle(
+                                              color: Colors.white,
+                                              fontWeight:
+                                                  FontWeight.w600)),
+                                      style: ElevatedButton.styleFrom(
+                                        backgroundColor:
+                                            const Color(0xFF2563EB),
+                                        elevation: 0,
+                                        shape: RoundedRectangleBorder(
+                                            borderRadius:
+                                                BorderRadius.circular(
+                                                    10)),
+                                      ),
                                     ),
-                                    child: const Text('Decline',
-                                        style: TextStyle(
-                                            fontWeight:
-                                                FontWeight.w600)),
                                   ),
-                                ),
+                                  const SizedBox(height: 8),
+                                  SizedBox(
+                                    width: double.infinity,
+                                    child: OutlinedButton.icon(
+                                      onPressed: () => showDialog(
+                                        context: context,
+                                        builder: (_) => AlertDialog(
+                                          shape: RoundedRectangleBorder(
+                                              borderRadius:
+                                                  BorderRadius.circular(
+                                                      20)),
+                                          title: const Text(
+                                              'Cancel booking?',
+                                              style: TextStyle(
+                                                  fontWeight:
+                                                      FontWeight.w700)),
+                                          content: const Text(
+                                              'This will notify the client and cannot be undone.'),
+                                          actions: [
+                                            TextButton(
+                                              onPressed: () =>
+                                                  Navigator.pop(context),
+                                              child:
+                                                  const Text('Keep it'),
+                                            ),
+                                            TextButton(
+                                              onPressed: () async {
+                                                Navigator.pop(context);
+                                                await FirebaseFirestore
+                                                    .instance
+                                                    .collection('bookings')
+                                                    .doc(filtered[index]
+                                                        .id)
+                                                    .update({
+                                                  'status': 'cancelled'
+                                                });
+                                                await NotificationService
+                                                    .sendNotification(
+                                                  toUserId:
+                                                      data['clientId'],
+                                                  title:
+                                                      'Booking Cancelled by Provider',
+                                                  body:
+                                                      '${data['providerName'] ?? 'Your provider'} has cancelled the booking on ${data['date']}.',
+                                                  type:
+                                                      'booking_cancelled',
+                                                  bookingId:
+                                                      filtered[index].id,
+                                                );
+                                              },
+                                              child: const Text(
+                                                  'Cancel booking',
+                                                  style: TextStyle(
+                                                      color: Colors.red,
+                                                      fontWeight:
+                                                          FontWeight
+                                                              .w600)),
+                                            ),
+                                          ],
+                                        ),
+                                      ),
+                                      icon: const Icon(
+                                          Icons.cancel_outlined,
+                                          color: Colors.red,
+                                          size: 16),
+                                      label: const Text('Cancel Booking',
+                                          style: TextStyle(
+                                              color: Colors.red,
+                                              fontWeight:
+                                                  FontWeight.w600)),
+                                      style: OutlinedButton.styleFrom(
+                                        side: const BorderSide(
+                                            color: Color(0xFFE2E8F0)),
+                                        shape: RoundedRectangleBorder(
+                                            borderRadius:
+                                                BorderRadius.circular(
+                                                    10)),
+                                      ),
+                                    ),
+                                  ),
+                                ],
                               ],
                             ),
-                          ],
-
-                          // Accepted — mark complete + cancel
-                          if (status == 'accepted') ...[
-                            const SizedBox(height: 12),
-                            SizedBox(
-                              width: double.infinity,
-                              child: ElevatedButton.icon(
-                                onPressed: () => showDialog(
-                                  context: context,
-                                  builder: (_) => AlertDialog(
-                                    shape: RoundedRectangleBorder(
-                                        borderRadius:
-                                            BorderRadius.circular(20)),
-                                    title: const Text(
-                                        'Mark as completed?',
-                                        style: TextStyle(
-                                            fontWeight:
-                                                FontWeight.w700)),
-                                    content: const Text(
-                                        'This confirms the job is done. The client will be notified and can leave a review.'),
-                                    actions: [
-                                      TextButton(
-                                        onPressed: () =>
-                                            Navigator.pop(context),
-                                        child: const Text('Not yet'),
-                                      ),
-                                      TextButton(
-                                        onPressed: () async {
-                                          Navigator.pop(context);
-                                          await FirebaseFirestore
-                                              .instance
-                                              .collection('bookings')
-                                              .doc(bookings[index].id)
-                                              .update({
-                                            'status': 'completed'
-                                          });
-                                          await NotificationService
-                                              .sendNotification(
-                                            toUserId: data['clientId'],
-                                            title: 'Job Completed',
-                                            body:
-                                                '${data['providerName'] ?? 'Your provider'} has marked the job on ${data['date']} as completed. Leave a review!',
-                                            type: 'booking_completed',
-                                            bookingId:
-                                                bookings[index].id,
-                                          );
-                                        },
-                                        child: const Text(
-                                            'Mark complete',
-                                            style: TextStyle(
-                                                color: Color(
-                                                    0xFF2563EB),
-                                                fontWeight:
-                                                    FontWeight.w600)),
-                                      ),
-                                    ],
-                                  ),
-                                ),
-                                icon: const Icon(
-                                    Icons.check_circle_rounded,
-                                    color: Colors.white,
-                                    size: 16),
-                                label: const Text('Mark as Completed',
-                                    style: TextStyle(
-                                        color: Colors.white,
-                                        fontWeight: FontWeight.w600)),
-                                style: ElevatedButton.styleFrom(
-                                  backgroundColor:
-                                      const Color(0xFF2563EB),
-                                  elevation: 0,
-                                  shape: RoundedRectangleBorder(
-                                      borderRadius:
-                                          BorderRadius.circular(10)),
-                                ),
-                              ),
-                            ),
-                            const SizedBox(height: 8),
-                            SizedBox(
-                              width: double.infinity,
-                              child: OutlinedButton.icon(
-                                onPressed: () => showDialog(
-                                  context: context,
-                                  builder: (_) => AlertDialog(
-                                    shape: RoundedRectangleBorder(
-                                        borderRadius:
-                                            BorderRadius.circular(20)),
-                                    title: const Text('Cancel booking?',
-                                        style: TextStyle(
-                                            fontWeight:
-                                                FontWeight.w700)),
-                                    content: const Text(
-                                        'This will notify the client and cannot be undone.'),
-                                    actions: [
-                                      TextButton(
-                                        onPressed: () =>
-                                            Navigator.pop(context),
-                                        child: const Text('Keep it'),
-                                      ),
-                                      TextButton(
-                                        onPressed: () async {
-                                          Navigator.pop(context);
-                                          await FirebaseFirestore
-                                              .instance
-                                              .collection('bookings')
-                                              .doc(bookings[index].id)
-                                              .update({
-                                            'status': 'cancelled'
-                                          });
-                                          await NotificationService
-                                              .sendNotification(
-                                            toUserId: data['clientId'],
-                                            title:
-                                                'Booking Cancelled by Provider',
-                                            body:
-                                                '${data['providerName'] ?? 'Your provider'} has cancelled the booking on ${data['date']}.',
-                                            type: 'booking_cancelled',
-                                            bookingId:
-                                                bookings[index].id,
-                                          );
-                                        },
-                                        child: const Text(
-                                            'Cancel booking',
-                                            style: TextStyle(
-                                                color: Colors.red,
-                                                fontWeight:
-                                                    FontWeight.w600)),
-                                      ),
-                                    ],
-                                  ),
-                                ),
-                                icon: const Icon(Icons.cancel_outlined,
-                                    color: Colors.red, size: 16),
-                                label: const Text('Cancel Booking',
-                                    style: TextStyle(
-                                        color: Colors.red,
-                                        fontWeight: FontWeight.w600)),
-                                style: OutlinedButton.styleFrom(
-                                  side: const BorderSide(
-                                      color: Color(0xFFE2E8F0)),
-                                  shape: RoundedRectangleBorder(
-                                      borderRadius:
-                                          BorderRadius.circular(10)),
-                                ),
-                              ),
-                            ),
-                          ],
-                        ],
-                      ),
+                          ),
+                        );
+                      },
                     ),
-                  );
-                },
+                  ],
+                ),
               );
             },
           ),
@@ -884,4 +1103,511 @@ class _BookingsTab extends StatelessWidget {
       ),
     );
   }
+}
+
+// ── Provider Profile Tab ──────────────────────────────────────────────────────
+class _ProviderProfileTab extends StatefulWidget {
+  final user;
+  const _ProviderProfileTab({required this.user});
+
+  @override
+  State<_ProviderProfileTab> createState() =>
+      _ProviderProfileTabState();
+}
+
+class _ProviderProfileTabState extends State<_ProviderProfileTab> {
+  final _nameController = TextEditingController();
+  bool _isEditing = false;
+  bool _isSaving = false;
+
+  static const _primary = Color(0xFF2563EB);
+  static const _bg = Color(0xFFF7F8FA);
+  static const _textPrimary = Color(0xFF0F172A);
+  static const _textSecondary = Color(0xFF64748B);
+
+  Future<void> _saveName() async {
+    if (_nameController.text.trim().isEmpty) return;
+    setState(() => _isSaving = true);
+    try {
+      final uid = widget.user?.uid;
+      await FirebaseFirestore.instance
+          .collection('users')
+          .doc(uid)
+          .update({'name': _nameController.text.trim()});
+
+      final providerDoc = await FirebaseFirestore.instance
+          .collection('providers')
+          .doc(uid)
+          .get();
+      if (providerDoc.exists) {
+        await FirebaseFirestore.instance
+            .collection('providers')
+            .doc(uid)
+            .update({'name': _nameController.text.trim()});
+      }
+
+      if (!mounted) return;
+      setState(() => _isEditing = false);
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+            content: Text('Name updated'),
+            backgroundColor: Color(0xFF10B981)),
+      );
+    } finally {
+      if (mounted) setState(() => _isSaving = false);
+    }
+  }
+
+  @override
+  void dispose() {
+    _nameController.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final uid = widget.user?.uid ?? '';
+
+    return FutureBuilder<List<dynamic>>(
+      future: Future.wait([
+        FirebaseFirestore.instance.collection('users').doc(uid).get(),
+        FirebaseFirestore.instance
+            .collection('providers')
+            .doc(uid)
+            .get(),
+        FirebaseFirestore.instance
+            .collection('bookings')
+            .where('providerId', isEqualTo: uid)
+            .get(),
+        FirebaseFirestore.instance
+            .collection('reviews')
+            .where('providerId', isEqualTo: uid)
+            .get(),
+      ]),
+      builder: (context, snapshot) {
+        if (!snapshot.hasData) {
+          return const Center(
+              child: CircularProgressIndicator(color: _primary));
+        }
+
+        final userData =
+            (snapshot.data![0] as DocumentSnapshot).data()
+                as Map<String, dynamic>? ??
+            {};
+        final providerData =
+            (snapshot.data![1] as DocumentSnapshot).data()
+                as Map<String, dynamic>? ??
+            {};
+        final bookings =
+            (snapshot.data![2] as QuerySnapshot).docs;
+        final reviews =
+            (snapshot.data![3] as QuerySnapshot).docs;
+
+        final name = userData['name'] ?? 'Provider';
+        final email =
+            userData['email'] ?? widget.user?.email ?? '';
+        final rating =
+            (providerData['rating'] ?? 0.0).toDouble();
+        final isVerified = providerData['isVerified'] ?? false;
+
+        final completed = bookings
+            .where((b) =>
+                (b.data() as Map)['status'] == 'completed')
+            .length;
+        final pending = bookings
+            .where((b) =>
+                (b.data() as Map)['status'] == 'pending')
+            .length;
+        final accepted = bookings
+            .where((b) =>
+                (b.data() as Map)['status'] == 'accepted')
+            .length;
+
+        if (!_isEditing && _nameController.text.isEmpty) {
+          _nameController.text = name;
+        }
+
+        return SingleChildScrollView(
+          child: Column(
+            children: [
+              // Hero
+              Container(
+                width: double.infinity,
+                padding:
+                    const EdgeInsets.fromLTRB(24, 28, 24, 32),
+                decoration: const BoxDecoration(
+                  color: _primary,
+                  borderRadius: BorderRadius.only(
+                    bottomLeft: Radius.circular(28),
+                    bottomRight: Radius.circular(28),
+                  ),
+                ),
+                child: Column(
+                  children: [
+                    Container(
+                      width: 80,
+                      height: 80,
+                      decoration: BoxDecoration(
+                        color: Colors.white.withOpacity(0.2),
+                        borderRadius: BorderRadius.circular(24),
+                      ),
+                      child: Center(
+                        child: Text(
+                          name[0].toUpperCase(),
+                          style: const TextStyle(
+                              color: Colors.white,
+                              fontSize: 34,
+                              fontWeight: FontWeight.w800),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 14),
+                    if (_isEditing)
+                      Container(
+                        margin: const EdgeInsets.symmetric(
+                            horizontal: 32),
+                        child: TextField(
+                          controller: _nameController,
+                          textAlign: TextAlign.center,
+                          style: const TextStyle(
+                              color: Colors.white,
+                              fontSize: 20,
+                              fontWeight: FontWeight.w700),
+                          decoration: const InputDecoration(
+                            enabledBorder: UnderlineInputBorder(
+                              borderSide: BorderSide(
+                                  color: Colors.white54),
+                            ),
+                            focusedBorder: UnderlineInputBorder(
+                              borderSide:
+                                  BorderSide(color: Colors.white),
+                            ),
+                            filled: false,
+                          ),
+                        ),
+                      )
+                    else
+                      Text(name,
+                          style: const TextStyle(
+                              color: Colors.white,
+                              fontSize: 22,
+                              fontWeight: FontWeight.w700)),
+                    const SizedBox(height: 4),
+                    Text(email,
+                        style: const TextStyle(
+                            color: Colors.white70, fontSize: 13)),
+                    const SizedBox(height: 8),
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Container(
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 10, vertical: 4),
+                          decoration: BoxDecoration(
+                            color: isVerified
+                                ? const Color(0xFF10B981)
+                                    .withOpacity(0.2)
+                                : Colors.orange.withOpacity(0.2),
+                            borderRadius: BorderRadius.circular(20),
+                          ),
+                          child: Row(
+                            children: [
+                              Icon(
+                                isVerified
+                                    ? Icons.verified_rounded
+                                    : Icons.schedule_rounded,
+                                color: isVerified
+                                    ? const Color(0xFF10B981)
+                                    : Colors.orange,
+                                size: 12,
+                              ),
+                              const SizedBox(width: 4),
+                              Text(
+                                isVerified
+                                    ? 'Verified Provider'
+                                    : 'Pending Verification',
+                                style: TextStyle(
+                                    color: isVerified
+                                        ? const Color(0xFF10B981)
+                                        : Colors.orange,
+                                    fontSize: 11,
+                                    fontWeight: FontWeight.w600),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 16),
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        if (_isEditing) ...[
+                          TextButton(
+                            onPressed: _isSaving ? null : _saveName,
+                            style: TextButton.styleFrom(
+                              backgroundColor:
+                                  Colors.white.withOpacity(0.2),
+                              shape: RoundedRectangleBorder(
+                                  borderRadius:
+                                      BorderRadius.circular(10)),
+                            ),
+                            child: const Text('Save',
+                                style: TextStyle(
+                                    color: Colors.white,
+                                    fontWeight: FontWeight.w600)),
+                          ),
+                          const SizedBox(width: 8),
+                          TextButton(
+                            onPressed: () =>
+                                setState(() => _isEditing = false),
+                            style: TextButton.styleFrom(
+                              backgroundColor:
+                                  Colors.white.withOpacity(0.1),
+                              shape: RoundedRectangleBorder(
+                                  borderRadius:
+                                      BorderRadius.circular(10)),
+                            ),
+                            child: const Text('Cancel',
+                                style: TextStyle(
+                                    color: Colors.white70)),
+                          ),
+                        ] else
+                          TextButton.icon(
+                            onPressed: () =>
+                                setState(() => _isEditing = true),
+                            icon: const Icon(Icons.edit_rounded,
+                                color: Colors.white, size: 14),
+                            label: const Text('Edit Profile',
+                                style: TextStyle(
+                                    color: Colors.white,
+                                    fontWeight: FontWeight.w600)),
+                            style: TextButton.styleFrom(
+                              backgroundColor:
+                                  Colors.white.withOpacity(0.15),
+                              shape: RoundedRectangleBorder(
+                                  borderRadius:
+                                      BorderRadius.circular(10)),
+                            ),
+                          ),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+
+              const SizedBox(height: 24),
+
+              // Stats
+              Padding(
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 20),
+                child: Row(
+                  children: [
+                    _statCard('${bookings.length}', 'Total\nJobs',
+                        Icons.work_rounded),
+                    const SizedBox(width: 12),
+                    _statCard('$completed', 'Completed',
+                        Icons.check_circle_rounded),
+                    const SizedBox(width: 12),
+                    _statCard(
+                        rating.toStringAsFixed(1),
+                        'Rating',
+                        Icons.star_rounded),
+                  ],
+                ),
+              ),
+
+              const SizedBox(height: 12),
+
+              Padding(
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 20),
+                child: Row(
+                  children: [
+                    _statCard('$pending', 'Pending',
+                        Icons.schedule_rounded),
+                    const SizedBox(width: 12),
+                    _statCard('$accepted', 'Accepted',
+                        Icons.thumb_up_rounded),
+                    const SizedBox(width: 12),
+                    _statCard('${reviews.length}', 'Reviews',
+                        Icons.reviews_rounded),
+                  ],
+                ),
+              ),
+
+              const SizedBox(height: 24),
+
+              // Account info
+              Padding(
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 20),
+                child: Container(
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(20),
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.black.withOpacity(0.05),
+                        blurRadius: 16,
+                        offset: const Offset(0, 4),
+                      ),
+                    ],
+                  ),
+                  child: Column(
+                    children: [
+                      _infoRow(
+                          icon: Icons.person_outline_rounded,
+                          label: 'Full Name',
+                          value: name),
+                      _divider(),
+                      _infoRow(
+                          icon: Icons.mail_outline_rounded,
+                          label: 'Email',
+                          value: email),
+                      _divider(),
+                      _infoRow(
+                          icon: Icons.shield_outlined,
+                          label: 'Account Type',
+                          value: 'Service Provider'),
+                      _divider(),
+                      _infoRow(
+                          icon: Icons.star_outline_rounded,
+                          label: 'Average Rating',
+                          value: rating > 0
+                              ? '${rating.toStringAsFixed(1)} / 5.0'
+                              : 'No ratings yet'),
+                    ],
+                  ),
+                ),
+              ),
+
+              const SizedBox(height: 24),
+
+              // Sign out
+              Padding(
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 20),
+                child: SizedBox(
+                  width: double.infinity,
+                  height: 52,
+                  child: OutlinedButton.icon(
+                    onPressed: () async {
+                      await FirebaseAuth.instance.signOut();
+                      if (!context.mounted) return;
+                      Navigator.pushReplacement(
+                          context,
+                          MaterialPageRoute(
+                              builder: (_) =>
+                                  const LoginScreen()));
+                    },
+                    icon: const Icon(Icons.logout_rounded,
+                        color: Colors.red, size: 18),
+                    label: const Text('Sign Out',
+                        style: TextStyle(
+                            color: Colors.red,
+                            fontWeight: FontWeight.w600,
+                            fontSize: 15)),
+                    style: OutlinedButton.styleFrom(
+                      side: const BorderSide(
+                          color: Color(0xFFE2E8F0)),
+                      shape: RoundedRectangleBorder(
+                          borderRadius:
+                              BorderRadius.circular(14)),
+                    ),
+                  ),
+                ),
+              ),
+
+              const SizedBox(height: 32),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
+  Widget _statCard(String value, String label, IconData icon) {
+    return Expanded(
+      child: Container(
+        padding: const EdgeInsets.all(14),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(16),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withOpacity(0.05),
+              blurRadius: 12,
+              offset: const Offset(0, 4),
+            ),
+          ],
+        ),
+        child: Column(
+          children: [
+            Icon(icon, color: _primary, size: 20),
+            const SizedBox(height: 6),
+            Text(value,
+                style: const TextStyle(
+                    fontSize: 18,
+                    fontWeight: FontWeight.w800,
+                    color: _textPrimary)),
+            const SizedBox(height: 2),
+            Text(label,
+                textAlign: TextAlign.center,
+                style: const TextStyle(
+                    fontSize: 11,
+                    color: _textSecondary,
+                    fontWeight: FontWeight.w500)),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _infoRow(
+      {required IconData icon,
+      required String label,
+      required String value}) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(
+          horizontal: 16, vertical: 14),
+      child: Row(
+        children: [
+          Container(
+            width: 36,
+            height: 36,
+            decoration: BoxDecoration(
+              color: _primary.withOpacity(0.08),
+              borderRadius: BorderRadius.circular(10),
+            ),
+            child: Icon(icon, color: _primary, size: 18),
+          ),
+          const SizedBox(width: 14),
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(label,
+                  style: const TextStyle(
+                      fontSize: 11,
+                      color: _textSecondary,
+                      fontWeight: FontWeight.w500)),
+              const SizedBox(height: 2),
+              Text(value,
+                  style: const TextStyle(
+                      fontSize: 14,
+                      color: _textPrimary,
+                      fontWeight: FontWeight.w600)),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _divider() => const Divider(
+      height: 1,
+      thickness: 0.5,
+      indent: 66,
+      endIndent: 16);
 }
