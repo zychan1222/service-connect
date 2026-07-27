@@ -103,6 +103,7 @@ class _BookingScreenState extends State<BookingScreen> {
       return;
     }
     setState(() => _isLoading = true);
+    
     try {
       final user = FirebaseAuth.instance.currentUser!;
       final userDoc = await FirebaseFirestore.instance
@@ -115,6 +116,14 @@ class _BookingScreenState extends State<BookingScreen> {
 
       final budgetMin = double.tryParse(_budgetMinController.text) ?? 0;
       final budgetMax = double.tryParse(_budgetMaxController.text) ?? 0;
+      if (budgetMax > 0 && budgetMin > 0 && budgetMax < budgetMin) {
+        setState(() => _isLoading = false);
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+              content: Text('Maximum budget cannot be less than minimum budget')),
+        );
+        return;
+      }
 
       final bookingRef = await FirebaseFirestore.instance
           .collection('bookings')

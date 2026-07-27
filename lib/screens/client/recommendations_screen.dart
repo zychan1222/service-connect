@@ -28,6 +28,15 @@ class _RecommendationsScreenState extends State<RecommendationsScreen> {
     _runMatchingAlgorithm();
   }
 
+  Future<void> _refresh() async {
+    setState(() {
+      _isLoading = true;
+      _recommended = [];
+      _others = [];
+    });
+    await _runMatchingAlgorithm();
+  }
+
   Future<void> _runMatchingAlgorithm() async {
     final user = FirebaseAuth.instance.currentUser!;
 
@@ -40,7 +49,8 @@ class _RecommendationsScreenState extends State<RecommendationsScreen> {
     for (final doc in bookingsSnap.docs) {
       final category = doc.data()['category'] as String? ?? '';
       if (category.isNotEmpty) {
-        categoryCount[category] = (categoryCount[category] ?? 0) + 1;
+        categoryCount[category] =
+            (categoryCount[category] ?? 0) + 1;
       }
     }
 
@@ -64,7 +74,8 @@ class _RecommendationsScreenState extends State<RecommendationsScreen> {
         final serviceData = serviceDoc.data();
         final category = serviceData['category'] as String? ?? '';
         final rating = (providerData['rating'] ?? 0.0).toDouble();
-        final bookingCount = (providerData['bookingCount'] ?? 0).toInt();
+        final bookingCount =
+            (providerData['bookingCount'] ?? 0).toInt();
         final categoryWeight = categoryCount.containsKey(category)
             ? (categoryCount[category]! * 10).toDouble()
             : 0.0;
@@ -86,7 +97,8 @@ class _RecommendationsScreenState extends State<RecommendationsScreen> {
       }
     }
 
-    scored.sort((a, b) => (b['score'] as double).compareTo(a['score']));
+    scored.sort(
+        (a, b) => (b['score'] as double).compareTo(a['score']));
 
     final recommended =
         scored.where((p) => p['isRecommended'] == true).toList();
@@ -128,6 +140,13 @@ class _RecommendationsScreenState extends State<RecommendationsScreen> {
         backgroundColor: _primary,
         elevation: 0,
         iconTheme: const IconThemeData(color: Colors.white),
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.refresh_rounded,
+                color: Colors.white),
+            onPressed: _isLoading ? null : _refresh,
+          ),
+        ],
       ),
       body: _isLoading
           ? Center(
@@ -159,111 +178,122 @@ class _RecommendationsScreenState extends State<RecommendationsScreen> {
                 ],
               ),
             )
-          : SingleChildScrollView(
-              padding: const EdgeInsets.all(20),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  // Insight banner
-                  Container(
-                    width: double.infinity,
-                    padding: const EdgeInsets.all(16),
-                    decoration: BoxDecoration(
-                      color: _primary.withOpacity(0.06),
-                      borderRadius: BorderRadius.circular(16),
-                      border: Border.all(
-                          color: _primary.withOpacity(0.15)),
-                    ),
-                    child: Row(
-                      children: [
-                        Container(
-                          width: 36,
-                          height: 36,
-                          decoration: BoxDecoration(
-                            color: _primary.withOpacity(0.12),
-                            borderRadius: BorderRadius.circular(10),
-                          ),
-                          child: const Icon(Icons.auto_awesome_rounded,
-                              color: _primary, size: 18),
-                        ),
-                        const SizedBox(width: 12),
-                        Expanded(
-                          child: Text(_insight,
-                              style: const TextStyle(
-                                  color: _primary,
-                                  fontSize: 13,
-                                  height: 1.4)),
-                        ),
-                      ],
-                    ),
-                  ),
-
-                  if (_recommended.isNotEmpty) ...[
-                    const SizedBox(height: 24),
-                    Row(
-                      children: [
-                        const Icon(Icons.star_rounded,
-                            color: Colors.amber, size: 18),
-                        const SizedBox(width: 6),
-                        const Text('Recommended For You',
-                            style: TextStyle(
-                                fontSize: 15,
-                                fontWeight: FontWeight.w700,
-                                color: _textPrimary,
-                                letterSpacing: -0.3)),
-                      ],
-                    ),
-                    const SizedBox(height: 12),
-                    ..._recommended.map((p) => _serviceCard(p, true)),
-                  ],
-
-                  if (_others.isNotEmpty) ...[
-                    const SizedBox(height: 24),
-                    const Text('Other Services',
-                        style: TextStyle(
-                            fontSize: 15,
-                            fontWeight: FontWeight.w700,
-                            color: _textPrimary,
-                            letterSpacing: -0.3)),
-                    const SizedBox(height: 12),
-                    ..._others.map((p) => _serviceCard(p, false)),
-                  ],
-
-                  if (_recommended.isEmpty && _others.isEmpty)
-                    Center(
-                      child: Padding(
-                        padding: const EdgeInsets.all(32),
-                        child: Column(
-                          children: [
-                            Container(
-                              width: 64,
-                              height: 64,
-                              decoration: BoxDecoration(
-                                color: _primary.withOpacity(0.08),
-                                borderRadius: BorderRadius.circular(20),
-                              ),
-                              child: const Icon(Icons.search_off_rounded,
-                                  color: _primary, size: 32),
+          : RefreshIndicator(
+              onRefresh: _refresh,
+              color: _primary,
+              child: SingleChildScrollView(
+                physics: const AlwaysScrollableScrollPhysics(),
+                padding: const EdgeInsets.all(20),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Container(
+                      width: double.infinity,
+                      padding: const EdgeInsets.all(16),
+                      decoration: BoxDecoration(
+                        color: _primary.withOpacity(0.06),
+                        borderRadius: BorderRadius.circular(16),
+                        border: Border.all(
+                            color: _primary.withOpacity(0.15)),
+                      ),
+                      child: Row(
+                        children: [
+                          Container(
+                            width: 36,
+                            height: 36,
+                            decoration: BoxDecoration(
+                              color: _primary.withOpacity(0.12),
+                              borderRadius: BorderRadius.circular(10),
                             ),
-                            const SizedBox(height: 16),
-                            const Text('No services available yet',
-                                style: TextStyle(
-                                    color: _textPrimary,
-                                    fontWeight: FontWeight.w600,
-                                    fontSize: 15)),
-                          ],
-                        ),
+                            child: const Icon(
+                                Icons.auto_awesome_rounded,
+                                color: _primary,
+                                size: 18),
+                          ),
+                          const SizedBox(width: 12),
+                          Expanded(
+                            child: Text(_insight,
+                                style: const TextStyle(
+                                    color: _primary,
+                                    fontSize: 13,
+                                    height: 1.4)),
+                          ),
+                        ],
                       ),
                     ),
 
-                  const SizedBox(height: 16),
-                ],
+                    if (_recommended.isNotEmpty) ...[
+                      const SizedBox(height: 24),
+                      const Row(
+                        children: [
+                          Icon(Icons.star_rounded,
+                              color: Colors.amber, size: 18),
+                          SizedBox(width: 6),
+                          Text('Recommended For You',
+                              style: TextStyle(
+                                  fontSize: 15,
+                                  fontWeight: FontWeight.w700,
+                                  color: _textPrimary,
+                                  letterSpacing: -0.3)),
+                        ],
+                      ),
+                      const SizedBox(height: 12),
+                      ..._recommended
+                          .map((p) => _serviceCard(p, true)),
+                    ],
+
+                    if (_others.isNotEmpty) ...[
+                      const SizedBox(height: 24),
+                      const Text('Other Services',
+                          style: TextStyle(
+                              fontSize: 15,
+                              fontWeight: FontWeight.w700,
+                              color: _textPrimary,
+                              letterSpacing: -0.3)),
+                      const SizedBox(height: 12),
+                      ..._others.map((p) => _serviceCard(p, false)),
+                    ],
+
+                    if (_recommended.isEmpty && _others.isEmpty)
+                      Center(
+                        child: Padding(
+                          padding: const EdgeInsets.all(32),
+                          child: Column(
+                            children: [
+                              Container(
+                                width: 64,
+                                height: 64,
+                                decoration: BoxDecoration(
+                                  color: _primary.withOpacity(0.08),
+                                  borderRadius:
+                                      BorderRadius.circular(20),
+                                ),
+                                child: const Icon(
+                                    Icons.search_off_rounded,
+                                    color: _primary,
+                                    size: 32),
+                              ),
+                              const SizedBox(height: 16),
+                              const Text('No services available yet',
+                                  style: TextStyle(
+                                      color: _textPrimary,
+                                      fontWeight: FontWeight.w600,
+                                      fontSize: 15)),
+                            ],
+                          ),
+                        ),
+                      ),
+
+                    const SizedBox(height: 16),
+                  ],
+                ),
               ),
             ),
     );
   }
 
-  Widget _serviceCard(Map<String, dynamic> provider, bool isRecommended) {
+  Widget _serviceCard(
+      Map<String, dynamic> provider, bool isRecommended) {
     return GestureDetector(
       onTap: () => Navigator.push(
         context,

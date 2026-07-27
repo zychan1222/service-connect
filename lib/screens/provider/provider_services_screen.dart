@@ -30,22 +30,43 @@ class _ProviderServicesScreenState extends State<ProviderServicesScreen> {
     'Carpentry', 'Painting', 'Landscaping'
   ];
 
-  Future<void> _addService() async {
-    if (_descriptionController.text.isEmpty ||
-        _priceMinController.text.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-            content: Text('Please fill in all required fields')),
-      );
-      return;
-    }
-    setState(() => _isLoading = true);
-    try {
-      final user = FirebaseAuth.instance.currentUser!;
-      final userDoc = await FirebaseFirestore.instance
-          .collection('users').doc(user.uid).get();
-      final providerName = userDoc.data()?['name'] ?? 'Provider';
+Future<void> _addService() async {
+  if (_descriptionController.text.isEmpty ||
+      _priceMinController.text.isEmpty) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(
+          content: Text('Please fill in all required fields')),
+    );
+    return;
+  }
 
+  final priceMin = double.tryParse(_priceMinController.text) ?? 0;
+  final priceMax = double.tryParse(_priceMaxController.text) ?? priceMin;
+
+  // Price range validation
+  if (priceMax > 0 && priceMax < priceMin) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(
+          content: Text('Maximum price cannot be less than minimum price')),
+    );
+    return;
+  }
+
+  setState(() => _isLoading = true);
+  try {
+    final user = FirebaseAuth.instance.currentUser!;
+    final userDoc = await FirebaseFirestore.instance
+        .collection('users').doc(user.uid).get();
+    final providerName = userDoc.data()?['name'] ?? 'Provider';
+
+    // Check if provider document already exists
+    final providerDoc = await FirebaseFirestore.instance
+        .collection('providers')
+        .doc(user.uid)
+        .get();
+
+    if (!providerDoc.exists) {
+      // First time — create with isVerified: false
       await FirebaseFirestore.instance
           .collection('providers')
           .doc(user.uid)
@@ -56,45 +77,57 @@ class _ProviderServicesScreenState extends State<ProviderServicesScreen> {
         'rating': 0.0,
         'bookingCount': 0,
         'isVerified': false,
-      }, SetOptions(merge: true));
-
-      final priceMin =
-          double.tryParse(_priceMinController.text) ?? 0;
-      final priceMax =
-          double.tryParse(_priceMaxController.text) ?? priceMin;
-
+      });
+    } else {
+      // Already exists — only update name and email, NEVER touch isVerified
       await FirebaseFirestore.instance
           .collection('providers')
           .doc(user.uid)
-          .collection('services')
-          .add({
-        'providerId': user.uid,
-        'providerName': providerName,
-        'category': _selectedCategory,
-        'description': _descriptionController.text.trim(),
-        'details': _detailsController.text.trim(),
-        'price': priceMin,
-        'priceMin': priceMin,
-        'priceMax': priceMax > priceMin ? priceMax : priceMin,
-        'isActive': true,
-        'createdAt': FieldValue.serverTimestamp(),
+          .update({
+        'name': providerName,
+        'email': userDoc.data()?['email'] ?? '',
       });
-
-      if (!mounted) return;
-      _descriptionController.clear();
-      _priceMinController.clear();
-      _priceMaxController.clear();
-      _detailsController.clear();
-      setState(() => _showForm = false);
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-            content: Text('Service added — pending admin approval'),
-            backgroundColor: Color(0xFF10B981)),
-      );
-    } finally {
-      if (mounted) setState(() => _isLoading = false);
     }
+
+    await FirebaseFirestore.instance
+        .collection('providers')
+        .doc(user.uid)
+        .collection('services')
+        .add({
+      'providerId': user.uid,
+      'providerName': providerName,
+      'category': _selectedCategory,
+      'description': _descriptionController.text.trim(),
+      'details': _detailsController.text.trim(),
+      'price': priceMin,
+      'priceMin': priceMin,
+      'priceMax': priceMax > priceMin ? priceMax : priceMin,
+      'isActive': true,
+      'createdAt': FieldValue.serverTimestamp(),
+    });
+
+    if (!mounted) return;
+    _descriptionController.clear();
+    _priceMinController.clear();
+    _priceMaxController.clear();
+    _detailsController.clear();
+    setState(() => _showForm = false);
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(
+          content: Text('Service added successfully'),
+          backgroundColor: Color(0xFF10B981)),
+    );
+  } catch (e) {
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(
+          content: Text('Failed to add service. Please try again.'),
+          backgroundColor: Colors.red),
+    );
+  } finally {
+    if (mounted) setState(() => _isLoading = false);
   }
+}
 
   Future<void> _toggleService(
       String serviceId, bool currentStatus) async {

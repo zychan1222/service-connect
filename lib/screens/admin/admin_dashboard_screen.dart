@@ -88,8 +88,8 @@ class AdminDashboardScreen extends StatelessWidget {
                           letterSpacing: -0.8)),
                   SizedBox(height: 4),
                   Text('Manage users, providers and approvals.',
-                      style:
-                          TextStyle(color: Colors.white70, fontSize: 14)),
+                      style: TextStyle(
+                          color: Colors.white70, fontSize: 14)),
                 ],
               ),
             ),
@@ -101,7 +101,8 @@ class AdminDashboardScreen extends StatelessWidget {
               padding: const EdgeInsets.symmetric(horizontal: 20),
               child: Row(
                 children: [
-                  _statCard('Users', 'users', const Color(0xFF2563EB)),
+                  _statCard('Users', 'users',
+                      const Color(0xFF2563EB)),
                   const SizedBox(width: 12),
                   _statCard('Providers', 'providers',
                       const Color(0xFF10B981)),
@@ -134,12 +135,14 @@ class AdminDashboardScreen extends StatelessWidget {
               builder: (context, snapshot) {
                 if (!snapshot.hasData) {
                   return const Center(
-                      child: CircularProgressIndicator(color: _primary));
+                      child: CircularProgressIndicator(
+                          color: _primary));
                 }
                 final pending = snapshot.data!.docs;
                 if (pending.isEmpty) {
                   return Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 20),
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: 20),
                     child: Container(
                       padding: const EdgeInsets.all(20),
                       decoration: BoxDecoration(
@@ -166,11 +169,12 @@ class AdminDashboardScreen extends StatelessWidget {
                 return ListView.builder(
                   shrinkWrap: true,
                   physics: const NeverScrollableScrollPhysics(),
-                  padding: const EdgeInsets.symmetric(horizontal: 20),
+                  padding: const EdgeInsets.symmetric(
+                      horizontal: 20),
                   itemCount: pending.length,
                   itemBuilder: (context, index) {
-                    final data =
-                        pending[index].data() as Map<String, dynamic>;
+                    final data = pending[index].data()
+                        as Map<String, dynamic>;
                     return Container(
                       margin: const EdgeInsets.only(bottom: 12),
                       padding: const EdgeInsets.all(16),
@@ -186,7 +190,8 @@ class AdminDashboardScreen extends StatelessWidget {
                         ],
                       ),
                       child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
+                        crossAxisAlignment:
+                            CrossAxisAlignment.start,
                         children: [
                           Row(
                             children: [
@@ -194,15 +199,20 @@ class AdminDashboardScreen extends StatelessWidget {
                                 width: 42,
                                 height: 42,
                                 decoration: BoxDecoration(
-                                  color: _primary.withOpacity(0.1),
-                                  borderRadius: BorderRadius.circular(12),
+                                  color:
+                                      _primary.withOpacity(0.1),
+                                  borderRadius:
+                                      BorderRadius.circular(12),
                                 ),
                                 child: Center(
                                   child: Text(
-                                    (data['name'] ?? 'P')[0].toUpperCase(),
+                                    (data['name'] ??
+                                            'P')[0]
+                                        .toUpperCase(),
                                     style: const TextStyle(
                                         color: _primary,
-                                        fontWeight: FontWeight.w700,
+                                        fontWeight:
+                                            FontWeight.w700,
                                         fontSize: 16),
                                   ),
                                 ),
@@ -213,9 +223,12 @@ class AdminDashboardScreen extends StatelessWidget {
                                   crossAxisAlignment:
                                       CrossAxisAlignment.start,
                                   children: [
-                                    Text(data['name'] ?? 'Provider',
+                                    Text(
+                                        data['name'] ??
+                                            'Provider',
                                         style: const TextStyle(
-                                            fontWeight: FontWeight.w700,
+                                            fontWeight:
+                                                FontWeight.w700,
                                             fontSize: 14,
                                             color: _textPrimary)),
                                     Text(data['email'] ?? '',
@@ -226,11 +239,14 @@ class AdminDashboardScreen extends StatelessWidget {
                                 ),
                               ),
                               Container(
-                                padding: const EdgeInsets.symmetric(
-                                    horizontal: 10, vertical: 4),
+                                padding:
+                                    const EdgeInsets.symmetric(
+                                        horizontal: 10,
+                                        vertical: 4),
                                 decoration: BoxDecoration(
                                   color: const Color(0xFFFFFBEB),
-                                  borderRadius: BorderRadius.circular(20),
+                                  borderRadius:
+                                      BorderRadius.circular(20),
                                 ),
                                 child: const Text('PENDING',
                                     style: TextStyle(
@@ -241,24 +257,160 @@ class AdminDashboardScreen extends StatelessWidget {
                               ),
                             ],
                           ),
+
+                          // Services summary
+                          FutureBuilder<QuerySnapshot>(
+                            future: FirebaseFirestore.instance
+                                .collection('providers')
+                                .doc(pending[index].id)
+                                .collection('services')
+                                .get(),
+                            builder: (context, svcSnap) {
+                              if (!svcSnap.hasData) {
+                                return const SizedBox.shrink();
+                              }
+                              final services =
+                                  svcSnap.data!.docs;
+                              if (services.isEmpty) {
+                                return const SizedBox.shrink();
+                              }
+                              return Padding(
+                                padding: const EdgeInsets.only(
+                                    top: 12),
+                                child: Column(
+                                  crossAxisAlignment:
+                                      CrossAxisAlignment.start,
+                                  children: [
+                                    Text(
+                                      '${services.length} service${services.length == 1 ? '' : 's'} submitted:',
+                                      style: const TextStyle(
+                                          fontSize: 12,
+                                          color: _textSecondary,
+                                          fontWeight:
+                                              FontWeight.w500),
+                                    ),
+                                    const SizedBox(height: 6),
+                                    ...services.map((s) {
+                                      final sd = s.data()
+                                          as Map<String, dynamic>;
+                                      final priceMin =
+                                          sd['priceMin'] ??
+                                              sd['price'] ??
+                                              0;
+                                      final priceMax =
+                                          sd['priceMax'] ??
+                                              priceMin;
+                                      final hasPriceRange =
+                                          priceMax > priceMin;
+                                      return Container(
+                                        margin:
+                                            const EdgeInsets.only(
+                                                bottom: 6),
+                                        padding:
+                                            const EdgeInsets.all(
+                                                10),
+                                        decoration: BoxDecoration(
+                                          color: _bg,
+                                          borderRadius:
+                                              BorderRadius.circular(
+                                                  10),
+                                        ),
+                                        child: Row(
+                                          children: [
+                                            Container(
+                                              padding: const EdgeInsets
+                                                  .symmetric(
+                                                  horizontal: 8,
+                                                  vertical: 3),
+                                              decoration:
+                                                  BoxDecoration(
+                                                color: _primary
+                                                    .withOpacity(
+                                                        0.08),
+                                                borderRadius:
+                                                    BorderRadius
+                                                        .circular(6),
+                                              ),
+                                              child: Text(
+                                                  sd['category'] ??
+                                                      '',
+                                                  style: const TextStyle(
+                                                      color: _primary,
+                                                      fontSize: 11,
+                                                      fontWeight:
+                                                          FontWeight
+                                                              .w600)),
+                                            ),
+                                            const SizedBox(
+                                                width: 8),
+                                            Expanded(
+                                              child: Text(
+                                                  sd['description'] ??
+                                                      '',
+                                                  style: const TextStyle(
+                                                      fontSize: 12,
+                                                      color:
+                                                          _textSecondary),
+                                                  maxLines: 1,
+                                                  overflow:
+                                                      TextOverflow
+                                                          .ellipsis),
+                                            ),
+                                            Text(
+                                              hasPriceRange
+                                                  ? 'RM $priceMin–$priceMax/hr'
+                                                  : 'RM $priceMin/hr',
+                                              style: const TextStyle(
+                                                  fontSize: 12,
+                                                  color: _primary,
+                                                  fontWeight:
+                                                      FontWeight.w700),
+                                            ),
+                                          ],
+                                        ),
+                                      );
+                                    }),
+                                  ],
+                                ),
+                              );
+                            },
+                          ),
+
                           const SizedBox(height: 14),
                           Row(
                             children: [
                               Expanded(
                                 child: ElevatedButton(
                                   onPressed: () async {
-                                    await FirebaseFirestore.instance
-                                        .collection('providers')
-                                        .doc(pending[index].id)
-                                        .update({'isVerified': true});
-                                    if (context.mounted) {
-                                      ScaffoldMessenger.of(context)
-                                          .showSnackBar(const SnackBar(
-                                        content:
-                                            Text('Provider approved'),
-                                        backgroundColor:
-                                            Color(0xFF10B981),
-                                      ));
+                                    try {
+                                      await FirebaseFirestore
+                                          .instance
+                                          .collection('providers')
+                                          .doc(pending[index].id)
+                                          .update(
+                                              {'isVerified': true});
+                                      if (context.mounted) {
+                                        ScaffoldMessenger.of(
+                                                context)
+                                            .showSnackBar(
+                                          const SnackBar(
+                                            content: Text(
+                                                'Provider approved'),
+                                            backgroundColor:
+                                                Color(0xFF10B981),
+                                          ),
+                                        );
+                                      }
+                                    } catch (e) {
+                                      if (context.mounted) {
+                                        ScaffoldMessenger.of(
+                                                context)
+                                            .showSnackBar(
+                                          const SnackBar(
+                                              content: Text(
+                                                  'Failed to approve provider')),
+                                        );
+                                      }
                                     }
                                   },
                                   style: ElevatedButton.styleFrom(
@@ -267,29 +419,65 @@ class AdminDashboardScreen extends StatelessWidget {
                                     elevation: 0,
                                     shape: RoundedRectangleBorder(
                                         borderRadius:
-                                            BorderRadius.circular(10)),
+                                            BorderRadius.circular(
+                                                10)),
                                   ),
                                   child: const Text('Approve',
                                       style: TextStyle(
                                           color: Colors.white,
-                                          fontWeight: FontWeight.w600)),
+                                          fontWeight:
+                                              FontWeight.w600)),
                                 ),
                               ),
                               const SizedBox(width: 8),
                               Expanded(
                                 child: OutlinedButton(
                                   onPressed: () async {
-                                    await FirebaseFirestore.instance
-                                        .collection('providers')
-                                        .doc(pending[index].id)
-                                        .delete();
-                                    if (context.mounted) {
-                                      ScaffoldMessenger.of(context)
-                                          .showSnackBar(const SnackBar(
-                                        content:
-                                            Text('Provider rejected'),
-                                        backgroundColor: Colors.red,
-                                      ));
+                                    try {
+                                      // Delete services subcollection first
+                                      final services =
+                                          await FirebaseFirestore
+                                              .instance
+                                              .collection(
+                                                  'providers')
+                                              .doc(pending[index].id)
+                                              .collection('services')
+                                              .get();
+                                      final batch =
+                                          FirebaseFirestore.instance
+                                              .batch();
+                                      for (final s
+                                          in services.docs) {
+                                        batch.delete(s.reference);
+                                      }
+                                      batch.delete(FirebaseFirestore
+                                          .instance
+                                          .collection('providers')
+                                          .doc(pending[index].id));
+                                      await batch.commit();
+
+                                      if (context.mounted) {
+                                        ScaffoldMessenger.of(
+                                                context)
+                                            .showSnackBar(
+                                          const SnackBar(
+                                            content: Text(
+                                                'Provider rejected and removed'),
+                                            backgroundColor:
+                                                Colors.red,
+                                          ),
+                                        );
+                                      }
+                                    } catch (e) {
+                                      if (context.mounted) {
+                                        ScaffoldMessenger.of(
+                                                context)
+                                            .showSnackBar(
+                                          const SnackBar(
+                                              content: Text(
+                                                  'Failed to reject provider')),
+                                        );
+                                      }
                                     }
                                   },
                                   style: OutlinedButton.styleFrom(
@@ -298,11 +486,13 @@ class AdminDashboardScreen extends StatelessWidget {
                                         color: Color(0xFFE2E8F0)),
                                     shape: RoundedRectangleBorder(
                                         borderRadius:
-                                            BorderRadius.circular(10)),
+                                            BorderRadius.circular(
+                                                10)),
                                   ),
                                   child: const Text('Reject',
                                       style: TextStyle(
-                                          fontWeight: FontWeight.w600)),
+                                          fontWeight:
+                                              FontWeight.w600)),
                                 ),
                               ),
                             ],
@@ -336,17 +526,19 @@ class AdminDashboardScreen extends StatelessWidget {
               builder: (context, snapshot) {
                 if (!snapshot.hasData) {
                   return const Center(
-                      child: CircularProgressIndicator(color: _primary));
+                      child: CircularProgressIndicator(
+                          color: _primary));
                 }
                 final users = snapshot.data!.docs;
                 return ListView.builder(
                   shrinkWrap: true,
                   physics: const NeverScrollableScrollPhysics(),
-                  padding: const EdgeInsets.symmetric(horizontal: 20),
+                  padding: const EdgeInsets.symmetric(
+                      horizontal: 20),
                   itemCount: users.length,
                   itemBuilder: (context, index) {
-                    final data =
-                        users[index].data() as Map<String, dynamic>;
+                    final data = users[index].data()
+                        as Map<String, dynamic>;
                     final role = data['role'] ?? 'client';
                     final roleColor = role == 'admin'
                         ? Colors.purple
@@ -374,11 +566,13 @@ class AdminDashboardScreen extends StatelessWidget {
                             height: 40,
                             decoration: BoxDecoration(
                               color: roleColor.withOpacity(0.1),
-                              borderRadius: BorderRadius.circular(12),
+                              borderRadius:
+                                  BorderRadius.circular(12),
                             ),
                             child: Center(
                               child: Text(
-                                (data['name'] ?? 'U')[0].toUpperCase(),
+                                (data['name'] ?? 'U')[0]
+                                    .toUpperCase(),
                                 style: TextStyle(
                                     color: roleColor,
                                     fontWeight: FontWeight.w700,
@@ -389,7 +583,8 @@ class AdminDashboardScreen extends StatelessWidget {
                           const SizedBox(width: 12),
                           Expanded(
                             child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
+                              crossAxisAlignment:
+                                  CrossAxisAlignment.start,
                               children: [
                                 Text(data['name'] ?? 'User',
                                     style: const TextStyle(
@@ -408,7 +603,8 @@ class AdminDashboardScreen extends StatelessWidget {
                                 horizontal: 8, vertical: 4),
                             decoration: BoxDecoration(
                               color: roleColor.withOpacity(0.08),
-                              borderRadius: BorderRadius.circular(8),
+                              borderRadius:
+                                  BorderRadius.circular(8),
                             ),
                             child: Text(role.toUpperCase(),
                                 style: TextStyle(
@@ -432,11 +628,13 @@ class AdminDashboardScreen extends StatelessWidget {
     );
   }
 
-  Widget _statCard(String label, String collection, Color color) {
+  Widget _statCard(
+      String label, String collection, Color color) {
     return Expanded(
       child: StreamBuilder<QuerySnapshot>(
-        stream:
-            FirebaseFirestore.instance.collection(collection).snapshots(),
+        stream: FirebaseFirestore.instance
+            .collection(collection)
+            .snapshots(),
         builder: (context, snapshot) {
           final count = snapshot.data?.docs.length ?? 0;
           return Container(
@@ -444,7 +642,8 @@ class AdminDashboardScreen extends StatelessWidget {
             decoration: BoxDecoration(
               color: color.withOpacity(0.08),
               borderRadius: BorderRadius.circular(16),
-              border: Border.all(color: color.withOpacity(0.15)),
+              border:
+                  Border.all(color: color.withOpacity(0.15)),
             ),
             child: Column(
               children: [

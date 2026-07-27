@@ -7,19 +7,29 @@ class ClientProfileScreen extends StatefulWidget {
   const ClientProfileScreen({super.key});
 
   @override
-  State<ClientProfileScreen> createState() => _ClientProfileScreenState();
+  State<ClientProfileScreen> createState() =>
+      _ClientProfileScreenState();
 }
 
 class _ClientProfileScreenState extends State<ClientProfileScreen> {
   final _nameController = TextEditingController();
   bool _isEditing = false;
   bool _isSaving = false;
+  late Future<DocumentSnapshot> _userFuture;
 
   static const _primary = Color(0xFF2563EB);
   static const _bg = Color(0xFFF7F8FA);
   static const _textPrimary = Color(0xFF0F172A);
   static const _textSecondary = Color(0xFF64748B);
-  static const _border = Color(0xFFE2E8F0);
+
+  @override
+  void initState() {
+    super.initState();
+    _userFuture = FirebaseFirestore.instance
+        .collection('users')
+        .doc(FirebaseAuth.instance.currentUser!.uid)
+        .get();
+  }
 
   @override
   void dispose() {
@@ -37,7 +47,6 @@ class _ClientProfileScreenState extends State<ClientProfileScreen> {
           .doc(user.uid)
           .update({'name': _nameController.text.trim()});
 
-      // Also update provider doc if exists
       final providerDoc = await FirebaseFirestore.instance
           .collection('providers')
           .doc(user.uid)
@@ -49,12 +58,26 @@ class _ClientProfileScreenState extends State<ClientProfileScreen> {
             .update({'name': _nameController.text.trim()});
       }
 
+      // Refresh the future
+      setState(() {
+        _isEditing = false;
+        _userFuture = FirebaseFirestore.instance
+            .collection('users')
+            .doc(user.uid)
+            .get();
+      });
+
       if (!mounted) return;
-      setState(() => _isEditing = false);
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
             content: Text('Name updated'),
             backgroundColor: Color(0xFF10B981)),
+      );
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+            content: Text('Failed to update name'),
+            backgroundColor: Colors.red),
       );
     } finally {
       if (mounted) setState(() => _isSaving = false);
@@ -87,9 +110,7 @@ class _ClientProfileScreenState extends State<ClientProfileScreen> {
           TextButton(
             onPressed: _isEditing
                 ? (_isSaving ? null : _saveName)
-                : () {
-                    setState(() => _isEditing = true);
-                  },
+                : () => setState(() => _isEditing = true),
             child: Text(
               _isEditing ? 'Save' : 'Edit',
               style: const TextStyle(
@@ -109,21 +130,19 @@ class _ClientProfileScreenState extends State<ClientProfileScreen> {
         ],
       ),
       body: FutureBuilder<DocumentSnapshot>(
-        future: FirebaseFirestore.instance
-            .collection('users')
-            .doc(user.uid)
-            .get(),
+        future: _userFuture,
         builder: (context, snapshot) {
           if (!snapshot.hasData) {
             return const Center(
                 child: CircularProgressIndicator(color: _primary));
           }
-          final data =
-              snapshot.data!.data() as Map<String, dynamic>? ?? {};
+          final data = snapshot.data!.data()
+                  as Map<String, dynamic>? ??
+              {};
           final name = data['name'] ?? 'User';
           final email = data['email'] ?? user.email ?? '';
 
-          if (!_isEditing && _nameController.text.isEmpty) {
+          if (_nameController.text.isEmpty) {
             _nameController.text = name;
           }
 
@@ -133,7 +152,8 @@ class _ClientProfileScreenState extends State<ClientProfileScreen> {
                 // Hero
                 Container(
                   width: double.infinity,
-                  padding: const EdgeInsets.fromLTRB(24, 28, 24, 32),
+                  padding:
+                      const EdgeInsets.fromLTRB(24, 28, 24, 32),
                   decoration: const BoxDecoration(
                     color: _primary,
                     borderRadius: BorderRadius.only(
@@ -163,8 +183,8 @@ class _ClientProfileScreenState extends State<ClientProfileScreen> {
                       const SizedBox(height: 14),
                       if (_isEditing)
                         Container(
-                          margin:
-                              const EdgeInsets.symmetric(horizontal: 32),
+                          margin: const EdgeInsets.symmetric(
+                              horizontal: 32),
                           child: TextField(
                             controller: _nameController,
                             textAlign: TextAlign.center,
@@ -172,17 +192,20 @@ class _ClientProfileScreenState extends State<ClientProfileScreen> {
                                 color: Colors.white,
                                 fontSize: 20,
                                 fontWeight: FontWeight.w700),
-                            decoration: InputDecoration(
+                            decoration:
+                                const InputDecoration(
                               hintText: 'Your name',
-                              hintStyle: const TextStyle(
+                              hintStyle: TextStyle(
                                   color: Colors.white54),
-                              enabledBorder: const UnderlineInputBorder(
+                              enabledBorder:
+                                  UnderlineInputBorder(
                                 borderSide: BorderSide(
                                     color: Colors.white54),
                               ),
-                              focusedBorder: const UnderlineInputBorder(
-                                borderSide:
-                                    BorderSide(color: Colors.white),
+                              focusedBorder:
+                                  UnderlineInputBorder(
+                                borderSide: BorderSide(
+                                    color: Colors.white),
                               ),
                               filled: false,
                             ),
@@ -197,32 +220,32 @@ class _ClientProfileScreenState extends State<ClientProfileScreen> {
                       const SizedBox(height: 4),
                       Text(email,
                           style: const TextStyle(
-                              color: Colors.white70, fontSize: 13)),
+                              color: Colors.white70,
+                              fontSize: 13)),
                     ],
                   ),
                 ),
 
                 const SizedBox(height: 24),
 
-                // Stats
-                FutureBuilder<QuerySnapshot>(
-                  future: FirebaseFirestore.instance
+                // Stats — use StreamBuilder so counts update live
+                StreamBuilder<QuerySnapshot>(
+                  stream: FirebaseFirestore.instance
                       .collection('bookings')
                       .where('clientId', isEqualTo: user.uid)
-                      .get(),
+                      .snapshots(),
                   builder: (context, bookingSnap) {
-                    final bookings = bookingSnap.data?.docs ?? [];
+                    final bookings =
+                        bookingSnap.data?.docs ?? [];
                     final total = bookings.length;
-                    final accepted = bookings
+                    final completed = bookings
                         .where((b) =>
-                            (b.data()
-                                as Map)['status'] ==
-                            'accepted')
+                            (b.data() as Map)['status'] ==
+                            'completed')
                         .length;
                     final pending = bookings
                         .where((b) =>
-                            (b.data()
-                                as Map)['status'] ==
+                            (b.data() as Map)['status'] ==
                             'pending')
                         .length;
 
@@ -231,10 +254,14 @@ class _ClientProfileScreenState extends State<ClientProfileScreen> {
                           horizontal: 20),
                       child: Row(
                         children: [
-                          _statCard('$total', 'Total\nBookings',
+                          _statCard(
+                              '$total',
+                              'Total\nBookings',
                               Icons.calendar_month_rounded),
                           const SizedBox(width: 12),
-                          _statCard('$accepted', 'Completed',
+                          _statCard(
+                              '$completed',
+                              'Completed',
                               Icons.check_circle_rounded),
                           const SizedBox(width: 12),
                           _statCard('$pending', 'Pending',
@@ -249,7 +276,8 @@ class _ClientProfileScreenState extends State<ClientProfileScreen> {
 
                 // Account info
                 Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 20),
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 20),
                   child: Container(
                     decoration: BoxDecoration(
                       color: Colors.white,
@@ -281,12 +309,6 @@ class _ClientProfileScreenState extends State<ClientProfileScreen> {
                           label: 'Account Type',
                           value: 'Client',
                         ),
-                        _divider(),
-                        _infoRow(
-                          icon: Icons.lock_outline_rounded,
-                          label: 'Password',
-                          value: '••••••••',
-                        ),
                       ],
                     ),
                   ),
@@ -294,9 +316,10 @@ class _ClientProfileScreenState extends State<ClientProfileScreen> {
 
                 const SizedBox(height: 24),
 
-                // Recent bookings summary
+                // Recent bookings
                 Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 20),
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 20),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
@@ -310,8 +333,10 @@ class _ClientProfileScreenState extends State<ClientProfileScreen> {
                       StreamBuilder<QuerySnapshot>(
                         stream: FirebaseFirestore.instance
                             .collection('bookings')
-                            .where('clientId', isEqualTo: user.uid)
-                            .orderBy('createdAt', descending: true)
+                            .where('clientId',
+                                isEqualTo: user.uid)
+                            .orderBy('createdAt',
+                                descending: true)
                             .limit(3)
                             .snapshots(),
                         builder: (context, snapshot) {
@@ -333,22 +358,30 @@ class _ClientProfileScreenState extends State<ClientProfileScreen> {
                             );
                           }
                           return Column(
-                            children: snapshot.data!.docs
-                                .map((doc) {
+                            children:
+                                snapshot.data!.docs.map((doc) {
                               final d = doc.data()
                                   as Map<String, dynamic>;
-                              final status = d['status'] ?? 'pending';
+                              final status =
+                                  d['status'] ?? 'pending';
                               final statusColor =
-                                  status == 'accepted'
-                                      ? const Color(0xFF10B981)
-                                      : status == 'declined' ||
-                                              status == 'cancelled'
-                                          ? Colors.red
-                                          : const Color(0xFFF59E0B);
+                                  status == 'completed'
+                                      ? _primary
+                                      : status == 'accepted'
+                                          ? const Color(
+                                              0xFF10B981)
+                                          : status ==
+                                                      'declined' ||
+                                                  status ==
+                                                      'cancelled'
+                                              ? Colors.red
+                                              : const Color(
+                                                  0xFFF59E0B);
                               return Container(
-                                margin:
-                                    const EdgeInsets.only(bottom: 10),
-                                padding: const EdgeInsets.all(14),
+                                margin: const EdgeInsets.only(
+                                    bottom: 10),
+                                padding:
+                                    const EdgeInsets.all(14),
                                 decoration: BoxDecoration(
                                   color: Colors.white,
                                   borderRadius:
@@ -371,7 +404,8 @@ class _ClientProfileScreenState extends State<ClientProfileScreen> {
                                         color: _primary
                                             .withOpacity(0.08),
                                         borderRadius:
-                                            BorderRadius.circular(10),
+                                            BorderRadius.circular(
+                                                10),
                                       ),
                                       child: const Icon(
                                           Icons.handyman_rounded,
@@ -382,20 +416,24 @@ class _ClientProfileScreenState extends State<ClientProfileScreen> {
                                     Expanded(
                                       child: Column(
                                         crossAxisAlignment:
-                                            CrossAxisAlignment.start,
+                                            CrossAxisAlignment
+                                                .start,
                                         children: [
                                           Text(
                                               d['providerName'] ??
                                                   'Provider',
                                               style: const TextStyle(
                                                   fontWeight:
-                                                      FontWeight.w600,
+                                                      FontWeight
+                                                          .w600,
                                                   fontSize: 13,
-                                                  color: _textPrimary)),
+                                                  color:
+                                                      _textPrimary)),
                                           Text(
                                               '${d['category']} • ${d['date']}',
                                               style: const TextStyle(
-                                                  color: _textSecondary,
+                                                  color:
+                                                      _textSecondary,
                                                   fontSize: 12)),
                                         ],
                                       ),
@@ -409,7 +447,8 @@ class _ClientProfileScreenState extends State<ClientProfileScreen> {
                                         color: statusColor
                                             .withOpacity(0.1),
                                         borderRadius:
-                                            BorderRadius.circular(8),
+                                            BorderRadius.circular(
+                                                8),
                                       ),
                                       child: Text(
                                           status.toUpperCase(),
@@ -432,9 +471,10 @@ class _ClientProfileScreenState extends State<ClientProfileScreen> {
 
                 const SizedBox(height: 24),
 
-                // Sign out button
+                // Sign out
                 Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 20),
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 20),
                   child: SizedBox(
                     width: double.infinity,
                     height: 52,
@@ -448,10 +488,11 @@ class _ClientProfileScreenState extends State<ClientProfileScreen> {
                               fontWeight: FontWeight.w600,
                               fontSize: 15)),
                       style: OutlinedButton.styleFrom(
-                        side:
-                            const BorderSide(color: Color(0xFFE2E8F0)),
+                        side: const BorderSide(
+                            color: Color(0xFFE2E8F0)),
                         shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(14)),
+                            borderRadius:
+                                BorderRadius.circular(14)),
                       ),
                     ),
                   ),
@@ -466,7 +507,8 @@ class _ClientProfileScreenState extends State<ClientProfileScreen> {
     );
   }
 
-  Widget _statCard(String value, String label, IconData icon) {
+  Widget _statCard(
+      String value, String label, IconData icon) {
     return Expanded(
       child: Container(
         padding: const EdgeInsets.all(14),
@@ -509,7 +551,8 @@ class _ClientProfileScreenState extends State<ClientProfileScreen> {
     required String value,
   }) {
     return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+      padding: const EdgeInsets.symmetric(
+          horizontal: 16, vertical: 14),
       child: Row(
         children: [
           Container(
@@ -544,5 +587,8 @@ class _ClientProfileScreenState extends State<ClientProfileScreen> {
   }
 
   Widget _divider() => const Divider(
-      height: 1, thickness: 0.5, indent: 66, endIndent: 16);
+      height: 1,
+      thickness: 0.5,
+      indent: 66,
+      endIndent: 16);
 }
