@@ -41,8 +41,6 @@ class ClientBookingsScreen extends StatelessWidget {
     }
   }
 
-  // ---- Time proposal helpers ----
-
   Future<void> _showProposeTimeDialog(BuildContext context, String bookingId,
       Map<String, dynamic> data, String proposedBy) async {
     DateTime selectedDate = DateTime.now().add(const Duration(days: 1));
