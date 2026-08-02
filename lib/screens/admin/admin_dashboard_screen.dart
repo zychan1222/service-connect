@@ -507,7 +507,37 @@ class AdminDashboardScreen extends StatelessWidget {
                                           .instance
                                           .collection('providers')
                                           .doc(pending[index].id));
+                                      // Mark the verification request as
+                                      // rejected so the provider sees the
+                                      // rejection screen (with a resubmit
+                                      // option) instead of staying stuck
+                                      // on "pending" forever.
+                                      final verificationRef =
+                                          FirebaseFirestore.instance
+                                              .collection(
+                                                  'verificationRequests')
+                                              .doc(pending[index].id);
+                                      final verificationDoc =
+                                          await verificationRef.get();
+                                      if (verificationDoc.exists) {
+                                        batch.update(verificationRef, {
+                                          'status': 'rejected',
+                                        });
+                                      }
                                       await batch.commit();
+                                      await FirebaseFirestore.instance
+                                          .collection('notifications')
+                                          .add({
+                                        'toUserId': pending[index].id,
+                                        'title':
+                                            'Verification Not Approved',
+                                        'body':
+                                            'Your provider verification was not approved. Please review and resubmit your details.',
+                                        'type': 'provider_verified',
+                                        'isRead': false,
+                                        'createdAt':
+                                            FieldValue.serverTimestamp(),
+                                      });
 
                                       if (context.mounted) {
                                         ScaffoldMessenger.of(

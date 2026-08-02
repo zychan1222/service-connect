@@ -67,6 +67,8 @@ Future<void> _addService() async {
 
     if (!providerDoc.exists) {
       // First time — create with isVerified: false
+      // (in practice this screen is only reachable after verification,
+      // but this keeps the write safe if that ever changes)
       await FirebaseFirestore.instance
           .collection('providers')
           .doc(user.uid)
@@ -80,6 +82,7 @@ Future<void> _addService() async {
       });
     } else {
       // Already exists — only update name and email, NEVER touch isVerified
+      // or phone (phone is owned by the verification flow).
       await FirebaseFirestore.instance
           .collection('providers')
           .doc(user.uid)

@@ -14,7 +14,6 @@ class _RegisterScreenState extends State<RegisterScreen> {
   final _nameController = TextEditingController();
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
-  final _phoneController = TextEditingController();
   String _selectedRole = 'client';
   bool _isLoading = false;
   bool _obscurePassword = true;
@@ -29,12 +28,6 @@ class _RegisterScreenState extends State<RegisterScreen> {
   Future<void> _register() async {
     if (_nameController.text.trim().isEmpty) {
       setState(() => _errorMessage = 'Please enter your full name');
-      return;
-    }
-    if (_selectedRole == 'provider' &&
-        _phoneController.text.trim().isEmpty) {
-      setState(() =>
-          _errorMessage = 'Please enter your phone number as a provider');
       return;
     }
     setState(() { _isLoading = true; _errorMessage = ''; });
@@ -52,8 +45,6 @@ class _RegisterScreenState extends State<RegisterScreen> {
             'name': _nameController.text.trim(),
             'email': _emailController.text.trim(),
             'role': _selectedRole,
-            if (_selectedRole == 'provider')
-              'phone': _phoneController.text.trim(),
             'createdAt': FieldValue.serverTimestamp(),
           });
       if (!mounted) return;
@@ -190,24 +181,30 @@ class _RegisterScreenState extends State<RegisterScreen> {
                       ),
                     ),
 
-                    // Phone number — only for providers, needed for admin
-                    // verification and shown to clients once approved.
                     if (_selectedRole == 'provider') ...[
-                      const SizedBox(height: 16),
-                      _buildField(
-                        controller: _phoneController,
-                        label: 'Phone number',
-                        hint: 'e.g. 012-345 6789',
-                        keyboardType: TextInputType.phone,
-                        prefixIcon: Icons.phone_outlined,
-                      ),
-                      const SizedBox(height: 6),
-                      const Text(
-                        'Used for admin verification. Visible to clients once your account is approved.',
-                        style: TextStyle(
-                            fontSize: 11,
-                            color: _textSecondary,
-                            height: 1.4),
+                      const SizedBox(height: 12),
+                      Container(
+                        padding: const EdgeInsets.all(12),
+                        decoration: BoxDecoration(
+                          color: _primary.withOpacity(0.06),
+                          borderRadius: BorderRadius.circular(10),
+                        ),
+                        child: Row(
+                          children: [
+                            const Icon(Icons.info_outline_rounded,
+                                color: _primary, size: 16),
+                            const SizedBox(width: 8),
+                            Expanded(
+                              child: Text(
+                                'After signing up, you\'ll submit your phone number and other details for admin verification.',
+                                style: TextStyle(
+                                    color: _primary,
+                                    fontSize: 12,
+                                    height: 1.4),
+                              ),
+                            ),
+                          ],
+                        ),
                       ),
                     ],
 

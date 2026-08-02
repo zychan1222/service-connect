@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:intl/intl.dart';
 import 'provider_services_screen.dart';
 import 'provider_reviews_screen.dart';
 import 'provider_verification_screen.dart';
@@ -439,6 +440,186 @@ class _BookingsTabState extends State<_BookingsTab> {
                 color: color)),
       );
 
+  // ---- Time proposal helpers (shared schema with ClientBookingsScreen:
+  // proposedDate / proposedTime / proposedBy / proposalStatus) ----
+
+  Future<void> _showProposeTimeDialog(BuildContext context, String bookingId,
+      Map<String, dynamic> data) async {
+    DateTime selectedDate = DateTime.now().add(const Duration(days: 1));
+    TimeOfDay selectedTime = const TimeOfDay(hour: 10, minute: 0);
+
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => StatefulBuilder(
+        builder: (context, setState) => AlertDialog(
+          shape:
+              RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+          title: const Text('Propose New Time',
+              style: TextStyle(fontWeight: FontWeight.w700, fontSize: 16)),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Container(
+                decoration: BoxDecoration(
+                  color: _bg,
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: ListTile(
+                  leading: const Icon(Icons.calendar_today_rounded,
+                      color: _primary, size: 18),
+                  title: Text(
+                      DateFormat('EEE, MMM d, yyyy').format(selectedDate),
+                      style: const TextStyle(
+                          fontSize: 13, fontWeight: FontWeight.w600)),
+                  onTap: () async {
+                    final picked = await showDatePicker(
+                      context: context,
+                      initialDate: selectedDate,
+                      firstDate: DateTime.now(),
+                      lastDate: DateTime.now().add(const Duration(days: 180)),
+                    );
+                    if (picked != null) setState(() => selectedDate = picked);
+                  },
+                ),
+              ),
+              const SizedBox(height: 10),
+              Container(
+                decoration: BoxDecoration(
+                  color: _bg,
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: ListTile(
+                  leading: const Icon(Icons.access_time_rounded,
+                      color: _primary, size: 18),
+                  title: Text(selectedTime.format(context),
+                      style: const TextStyle(
+                          fontSize: 13, fontWeight: FontWeight.w600)),
+                  onTap: () async {
+                    final picked = await showTimePicker(
+                        context: context, initialTime: selectedTime);
+                    if (picked != null) setState(() => selectedTime = picked);
+                  },
+                ),
+              ),
+            ],
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(dialogContext, false),
+              child: const Text('Cancel'),
+            ),
+            ElevatedButton(
+              onPressed: () => Navigator.pop(dialogContext, true),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: _primary,
+                shape:
+                    RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+              ),
+              child:
+                  const Text('Send Proposal', style: TextStyle(color: Colors.white)),
+            ),
+          ],
+        ),
+      ),
+    );
+
+    if (confirmed != true) return;
+    if (!context.mounted) return;
+
+    final formattedDate = DateFormat('yyyy-MM-dd').format(selectedDate);
+    final formattedTime = selectedTime.format(context);
+
+    try {
+      await FirebaseFirestore.instance
+          .collection('bookings')
+          .doc(bookingId)
+          .update({
+        'proposedDate': formattedDate,
+        'proposedTime': formattedTime,
+        'proposedBy': 'provider',
+        'proposalStatus': 'pending',
+      });
+
+      await NotificationService.sendNotification(
+        toUserId: data['clientId'],
+        title: 'New Time Proposed',
+        body:
+            '${data['providerName'] ?? 'Your provider'} proposed $formattedDate at $formattedTime for your booking',
+        type: 'time_proposed',
+        bookingId: bookingId,
+      );
+    } catch (e) {
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Failed to send time proposal')),
+        );
+      }
+    }
+  }
+
+  Future<void> _acceptProposedTime(
+      BuildContext context, String bookingId, Map<String, dynamic> data) async {
+    try {
+      final newDate = data['proposedDate'];
+      final newTime = data['proposedTime'];
+      await FirebaseFirestore.instance
+          .collection('bookings')
+          .doc(bookingId)
+          .update({
+        'date': newDate,
+        'time': newTime,
+        'proposedDate': FieldValue.delete(),
+        'proposedTime': FieldValue.delete(),
+        'proposedBy': FieldValue.delete(),
+        'proposalStatus': 'none',
+      });
+      await NotificationService.sendNotification(
+        toUserId: data['clientId'],
+        title: 'Time Proposal Accepted',
+        body:
+            '${data['providerName'] ?? 'Your provider'} accepted the new time: $newDate at $newTime',
+        type: 'time_accepted',
+        bookingId: bookingId,
+      );
+    } catch (e) {
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Failed to accept the proposed time')),
+        );
+      }
+    }
+  }
+
+  Future<void> _declineProposedTime(
+      BuildContext context, String bookingId, Map<String, dynamic> data) async {
+    try {
+      await FirebaseFirestore.instance
+          .collection('bookings')
+          .doc(bookingId)
+          .update({
+        'proposedDate': FieldValue.delete(),
+        'proposedTime': FieldValue.delete(),
+        'proposedBy': FieldValue.delete(),
+        'proposalStatus': 'none',
+      });
+      await NotificationService.sendNotification(
+        toUserId: data['clientId'],
+        title: 'Time Proposal Declined',
+        body:
+            '${data['providerName'] ?? 'Your provider'} kept the original booking time',
+        type: 'time_declined',
+        bookingId: bookingId,
+      );
+    } catch (e) {
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Failed to decline the proposed time')),
+        );
+      }
+    }
+  }
+
   List<QueryDocumentSnapshot> _filterBookings(
       List<QueryDocumentSnapshot> bookings) {
     return bookings.where((doc) {
@@ -752,6 +933,7 @@ class _BookingsTabState extends State<_BookingsTab> {
                       itemBuilder: (context, index) {
                         final data = filtered[index].data()
                             as Map<String, dynamic>;
+                        final bookingId = filtered[index].id;
                         final status =
                             data['status'] ?? 'pending';
                         final urgency =
@@ -762,12 +944,11 @@ class _BookingsTabState extends State<_BookingsTab> {
                             data['budgetMax'] ?? 0;
                         final hasBudget =
                             budgetMin > 0 || budgetMax > 0;
-                        final proposedDate =
-                            data['proposedDate'] ?? '';
-                        final proposedTime =
-                            data['proposedTime'] ?? '';
-                        final hasProposal =
-                            proposedDate.isNotEmpty;
+                        final proposalStatus =
+                            data['proposalStatus'] ?? 'none';
+                        final proposedBy = data['proposedBy'];
+                        final canProposeTime = status == 'pending' ||
+                            status == 'accepted';
 
                         return Container(
                           margin:
@@ -927,9 +1108,10 @@ class _BookingsTabState extends State<_BookingsTab> {
                                   ),
                                 ),
 
-                                // Proposed time banner
-                                if (hasProposal &&
-                                    status == 'accepted') ...[
+                                // ---- Time proposal section (shared
+                                // schema with ClientBookingsScreen) ----
+                                if (proposalStatus == 'pending' &&
+                                    proposedBy == 'client') ...[
                                   const SizedBox(height: 10),
                                   Container(
                                     padding:
@@ -969,68 +1151,97 @@ class _BookingsTabState extends State<_BookingsTab> {
                                         ),
                                         const SizedBox(height: 4),
                                         Text(
-                                            '$proposedDate at $proposedTime',
+                                            '${data['proposedDate']} at ${data['proposedTime']}',
                                             style: const TextStyle(
                                                 color:
                                                     Color(0xFF2563EB),
                                                 fontSize: 13,
                                                 fontWeight:
                                                     FontWeight.w700)),
-                                        if ((data['proposalReason'] ??
-                                                '')
-                                            .isNotEmpty) ...[
-                                          const SizedBox(height: 4),
-                                          Text(
-                                              data['proposalReason'],
-                                              style: const TextStyle(
-                                                  color:
-                                                      Color(0xFF64748B),
-                                                  fontSize: 12)),
-                                        ],
                                         const SizedBox(height: 10),
                                         Row(
                                           children: [
                                             Expanded(
+                                              child: OutlinedButton(
+                                                onPressed: () =>
+                                                    _showProposeTimeDialog(
+                                                        context,
+                                                        bookingId,
+                                                        data),
+                                                style: OutlinedButton
+                                                    .styleFrom(
+                                                  foregroundColor:
+                                                      _primary,
+                                                  side: const BorderSide(
+                                                      color: _primary),
+                                                  padding: const EdgeInsets
+                                                      .symmetric(
+                                                      vertical: 10),
+                                                  shape: RoundedRectangleBorder(
+                                                      borderRadius:
+                                                          BorderRadius
+                                                              .circular(
+                                                                  8)),
+                                                ),
+                                                child: const Text(
+                                                    'Counter',
+                                                    style: TextStyle(
+                                                        fontSize: 12,
+                                                        fontWeight:
+                                                            FontWeight
+                                                                .w600)),
+                                              ),
+                                            ),
+                                            const SizedBox(width: 8),
+                                            Expanded(
+                                              child: OutlinedButton(
+                                                onPressed: () =>
+                                                    _declineProposedTime(
+                                                        context,
+                                                        bookingId,
+                                                        data),
+                                                style: OutlinedButton
+                                                    .styleFrom(
+                                                  foregroundColor:
+                                                      _textSecondary,
+                                                  side: const BorderSide(
+                                                      color: Color(
+                                                          0xFFE2E8F0)),
+                                                  padding: const EdgeInsets
+                                                      .symmetric(
+                                                      vertical: 10),
+                                                  shape: RoundedRectangleBorder(
+                                                      borderRadius:
+                                                          BorderRadius
+                                                              .circular(
+                                                                  8)),
+                                                ),
+                                                child: const Text(
+                                                    'Keep Original',
+                                                    style: TextStyle(
+                                                        fontSize: 12,
+                                                        fontWeight:
+                                                            FontWeight
+                                                                .w600)),
+                                              ),
+                                            ),
+                                            const SizedBox(width: 8),
+                                            Expanded(
                                               child: ElevatedButton(
-                                                onPressed: () async {
-                                                  await FirebaseFirestore
-                                                      .instance
-                                                      .collection(
-                                                          'bookings')
-                                                      .doc(filtered[
-                                                              index]
-                                                          .id)
-                                                      .update({
-                                                    'date':
-                                                        proposedDate,
-                                                    'time':
-                                                        proposedTime,
-                                                    'proposedDate': '',
-                                                    'proposedTime': '',
-                                                    'proposalReason':
-                                                        '',
-                                                  });
-                                                  await NotificationService
-                                                      .sendNotification(
-                                                    toUserId:
-                                                        data['clientId'],
-                                                    title:
-                                                        'New Time Accepted',
-                                                    body:
-                                                        '${data['providerName'] ?? 'Your provider'} has accepted your proposed time: $proposedDate at $proposedTime',
-                                                    type:
-                                                        'time_accepted',
-                                                    bookingId:
-                                                        filtered[index]
-                                                            .id,
-                                                  );
-                                                },
+                                                onPressed: () =>
+                                                    _acceptProposedTime(
+                                                        context,
+                                                        bookingId,
+                                                        data),
                                                 style: ElevatedButton
                                                     .styleFrom(
                                                   backgroundColor:
                                                       const Color(
                                                           0xFF10B981),
                                                   elevation: 0,
+                                                  padding: const EdgeInsets
+                                                      .symmetric(
+                                                      vertical: 10),
                                                   shape: RoundedRectangleBorder(
                                                       borderRadius:
                                                           BorderRadius
@@ -1048,63 +1259,70 @@ class _BookingsTabState extends State<_BookingsTab> {
                                                                 .w600)),
                                               ),
                                             ),
-                                            const SizedBox(width: 8),
-                                            Expanded(
-                                              child: OutlinedButton(
-                                                onPressed: () async {
-                                                  await FirebaseFirestore
-                                                      .instance
-                                                      .collection(
-                                                          'bookings')
-                                                      .doc(filtered[
-                                                              index]
-                                                          .id)
-                                                      .update({
-                                                    'proposedDate': '',
-                                                    'proposedTime': '',
-                                                    'proposalReason':
-                                                        '',
-                                                  });
-                                                  await NotificationService
-                                                      .sendNotification(
-                                                    toUserId:
-                                                        data['clientId'],
-                                                    title:
-                                                        'Time Proposal Declined',
-                                                    body:
-                                                        '${data['providerName'] ?? 'Your provider'} has kept the original booking time.',
-                                                    type:
-                                                        'time_declined',
-                                                    bookingId:
-                                                        filtered[index]
-                                                            .id,
-                                                  );
-                                                },
-                                                style: OutlinedButton
-                                                    .styleFrom(
-                                                  foregroundColor:
-                                                      _textSecondary,
-                                                  side: const BorderSide(
-                                                      color: Color(
-                                                          0xFFE2E8F0)),
-                                                  shape: RoundedRectangleBorder(
-                                                      borderRadius:
-                                                          BorderRadius
-                                                              .circular(
-                                                                  8)),
-                                                ),
-                                                child: const Text(
-                                                    'Keep Original',
-                                                    style: TextStyle(
-                                                        fontSize: 12,
-                                                        fontWeight:
-                                                            FontWeight
-                                                                .w600)),
-                                              ),
-                                            ),
                                           ],
                                         ),
                                       ],
+                                    ),
+                                  ),
+                                ] else if (proposalStatus == 'pending' &&
+                                    proposedBy == 'provider') ...[
+                                  const SizedBox(height: 10),
+                                  Container(
+                                    width: double.infinity,
+                                    padding: const EdgeInsets.symmetric(
+                                        horizontal: 12, vertical: 10),
+                                    decoration: BoxDecoration(
+                                      color: _bg,
+                                      borderRadius:
+                                          BorderRadius.circular(10),
+                                      border: Border.all(
+                                          color:
+                                              const Color(0xFFE2E8F0)),
+                                    ),
+                                    child: Row(
+                                      children: [
+                                        const Icon(
+                                            Icons.hourglass_top_rounded,
+                                            size: 13,
+                                            color: _textSecondary),
+                                        const SizedBox(width: 8),
+                                        Expanded(
+                                          child: Text(
+                                              'Waiting for client to respond to ${data['proposedDate']} at ${data['proposedTime']}',
+                                              style: const TextStyle(
+                                                  fontSize: 12,
+                                                  color:
+                                                      _textSecondary)),
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                ] else if (canProposeTime) ...[
+                                  const SizedBox(height: 8),
+                                  Align(
+                                    alignment: Alignment.centerLeft,
+                                    child: TextButton.icon(
+                                      onPressed: () =>
+                                          _showProposeTimeDialog(
+                                              context, bookingId, data),
+                                      icon: const Icon(
+                                          Icons.edit_calendar_rounded,
+                                          size: 15,
+                                          color: _primary),
+                                      label: const Text(
+                                          'Propose New Time',
+                                          style: TextStyle(
+                                              color: _primary,
+                                              fontWeight:
+                                                  FontWeight.w600,
+                                              fontSize: 12)),
+                                      style: TextButton.styleFrom(
+                                        padding: EdgeInsets.zero,
+                                        minimumSize: const Size(0, 0),
+                                        tapTargetSize:
+                                            MaterialTapTargetSize
+                                                .shrinkWrap,
+                                      ),
                                     ),
                                   ),
                                 ],
@@ -1219,8 +1437,7 @@ class _BookingsTabState extends State<_BookingsTab> {
                                             await FirebaseFirestore
                                                 .instance
                                                 .collection('bookings')
-                                                .doc(filtered[index]
-                                                    .id)
+                                                .doc(bookingId)
                                                 .update({
                                               'status': 'accepted'
                                             });
@@ -1233,8 +1450,7 @@ class _BookingsTabState extends State<_BookingsTab> {
                                               body:
                                                   '${data['providerName'] ?? 'Your provider'} has accepted your booking on ${data['date']}',
                                               type: 'booking_accepted',
-                                              bookingId:
-                                                  filtered[index].id,
+                                              bookingId: bookingId,
                                             );
                                           },
                                           style:
@@ -1263,8 +1479,7 @@ class _BookingsTabState extends State<_BookingsTab> {
                                             await FirebaseFirestore
                                                 .instance
                                                 .collection('bookings')
-                                                .doc(filtered[index]
-                                                    .id)
+                                                .doc(bookingId)
                                                 .update({
                                               'status': 'declined'
                                             });
@@ -1277,8 +1492,7 @@ class _BookingsTabState extends State<_BookingsTab> {
                                               body:
                                                   '${data['providerName'] ?? 'Your provider'} is unavailable on ${data['date']}.',
                                               type: 'booking_declined',
-                                              bookingId:
-                                                  filtered[index].id,
+                                              bookingId: bookingId,
                                             );
                                           },
                                           style:
@@ -1306,7 +1520,7 @@ class _BookingsTabState extends State<_BookingsTab> {
 
                                 // Accepted — mark complete + cancel
                                 if (status == 'accepted' &&
-                                    !hasProposal) ...[
+                                    proposalStatus != 'pending') ...[
                                   const SizedBox(height: 12),
                                   SizedBox(
                                     width: double.infinity,
@@ -1340,8 +1554,7 @@ class _BookingsTabState extends State<_BookingsTab> {
                                                     .instance
                                                     .collection(
                                                         'bookings')
-                                                    .doc(filtered[index]
-                                                        .id)
+                                                    .doc(bookingId)
                                                     .update({
                                                   'status': 'completed'
                                                 });
@@ -1355,9 +1568,7 @@ class _BookingsTabState extends State<_BookingsTab> {
                                                       '${data['providerName'] ?? 'Your provider'} has marked the job on ${data['date']} as completed. Leave a review!',
                                                   type:
                                                       'booking_completed',
-                                                  bookingId:
-                                                      filtered[index]
-                                                          .id,
+                                                  bookingId: bookingId,
                                                 );
                                               },
                                               child: const Text(
@@ -1426,8 +1637,7 @@ class _BookingsTabState extends State<_BookingsTab> {
                                                     .instance
                                                     .collection(
                                                         'bookings')
-                                                    .doc(filtered[index]
-                                                        .id)
+                                                    .doc(bookingId)
                                                     .update({
                                                   'status': 'cancelled'
                                                 });
@@ -1441,9 +1651,7 @@ class _BookingsTabState extends State<_BookingsTab> {
                                                       '${data['providerName'] ?? 'Your provider'} has cancelled the booking on ${data['date']}.',
                                                   type:
                                                       'booking_cancelled',
-                                                  bookingId:
-                                                      filtered[index]
-                                                          .id,
+                                                  bookingId: bookingId,
                                                 );
                                               },
                                               child: const Text(
