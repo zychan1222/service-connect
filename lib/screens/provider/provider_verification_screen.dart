@@ -91,11 +91,7 @@ class _ProviderVerificationScreenState
             content: Text('Verification submitted for review'),
             backgroundColor: Color(0xFF10B981)),
       );
-      // Head back to the provider home screen — its StreamBuilder on the
-      // providers doc will immediately reflect the pending status (banner
-      // + locked services tab). Reopening this screen later will show the
-      // pending/rejected status view instead of the form, since a
-      // verificationRequests doc now exists.
+
       Navigator.pop(context);
     } catch (e) {
       if (!mounted) return;
