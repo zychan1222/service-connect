@@ -20,7 +20,6 @@ class _ProviderVerificationScreenState
   final _serviceAreaController = TextEditingController();
   final _addressController = TextEditingController();
   bool _isLoading = false;
-  bool _submitted = false;
 
   static const _primary = Color(0xFF2563EB);
   static const _bg = Color(0xFFF7F8FA);
@@ -87,7 +86,17 @@ class _ProviderVerificationScreenState
       });
 
       if (!mounted) return;
-      setState(() => _submitted = true);
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+            content: Text('Verification submitted for review'),
+            backgroundColor: Color(0xFF10B981)),
+      );
+      // Head back to the provider home screen — its StreamBuilder on the
+      // providers doc will immediately reflect the pending status (banner
+      // + locked services tab). Reopening this screen later will show the
+      // pending/rejected status view instead of the form, since a
+      // verificationRequests doc now exists.
+      Navigator.pop(context);
     } catch (e) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
@@ -196,6 +205,24 @@ class _ProviderVerificationScreenState
                     ),
                   ),
                 ],
+              ),
+            ),
+            const SizedBox(height: 24),
+            SizedBox(
+              width: double.infinity,
+              height: 52,
+              child: OutlinedButton(
+                onPressed: () => Navigator.pop(context),
+                style: OutlinedButton.styleFrom(
+                  side: const BorderSide(color: Color(0xFFE2E8F0)),
+                  shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(14)),
+                ),
+                child: const Text('Back to Home',
+                    style: TextStyle(
+                        color: Color(0xFF0F172A),
+                        fontWeight: FontWeight.w600,
+                        fontSize: 15)),
               ),
             ),
           ],
