@@ -125,6 +125,13 @@ class AdminDashboardScreen extends StatelessWidget {
                       color: _textPrimary,
                       letterSpacing: -0.3)),
             ),
+            const SizedBox(height: 4),
+            const Padding(
+              padding: EdgeInsets.symmetric(horizontal: 20),
+              child: Text(
+                  'Phone and email are shown to clients once you approve.',
+                  style: TextStyle(fontSize: 12, color: _textSecondary)),
+            ),
             const SizedBox(height: 14),
 
             StreamBuilder<QuerySnapshot>(
@@ -175,6 +182,7 @@ class AdminDashboardScreen extends StatelessWidget {
                   itemBuilder: (context, index) {
                     final data = pending[index].data()
                         as Map<String, dynamic>;
+                    final phone = data['phone'] ?? '';
                     return Container(
                       margin: const EdgeInsets.only(bottom: 12),
                       padding: const EdgeInsets.all(16),
@@ -194,6 +202,8 @@ class AdminDashboardScreen extends StatelessWidget {
                             CrossAxisAlignment.start,
                         children: [
                           Row(
+                            crossAxisAlignment:
+                                CrossAxisAlignment.start,
                             children: [
                               Container(
                                 width: 42,
@@ -231,10 +241,40 @@ class AdminDashboardScreen extends StatelessWidget {
                                                 FontWeight.w700,
                                             fontSize: 14,
                                             color: _textPrimary)),
-                                    Text(data['email'] ?? '',
-                                        style: const TextStyle(
-                                            color: _textSecondary,
-                                            fontSize: 12)),
+                                    const SizedBox(height: 2),
+                                    Row(
+                                      children: [
+                                        const Icon(
+                                            Icons.email_rounded,
+                                            size: 12,
+                                            color:
+                                                _textSecondary),
+                                        const SizedBox(width: 4),
+                                        Text(data['email'] ?? '',
+                                            style: const TextStyle(
+                                                color:
+                                                    _textSecondary,
+                                                fontSize: 12)),
+                                      ],
+                                    ),
+                                    if (phone.isNotEmpty) ...[
+                                      const SizedBox(height: 2),
+                                      Row(
+                                        children: [
+                                          const Icon(
+                                              Icons.phone_rounded,
+                                              size: 12,
+                                              color:
+                                                  _textSecondary),
+                                          const SizedBox(width: 4),
+                                          Text(phone,
+                                              style: const TextStyle(
+                                                  color:
+                                                      _textSecondary,
+                                                  fontSize: 12)),
+                                        ],
+                                      ),
+                                    ],
                                   ],
                                 ),
                               ),
@@ -389,6 +429,19 @@ class AdminDashboardScreen extends StatelessWidget {
                                           .doc(pending[index].id)
                                           .update(
                                               {'isVerified': true});
+                                      await FirebaseFirestore
+                                          .instance
+                                          .collection('notifications')
+                                          .add({
+                                        'toUserId': pending[index].id,
+                                        'title': 'You\'re verified!',
+                                        'body':
+                                            'Your provider profile has been approved. Clients can now see your contact details.',
+                                        'type': 'provider_verified',
+                                        'isRead': false,
+                                        'createdAt':
+                                            FieldValue.serverTimestamp(),
+                                      });
                                       if (context.mounted) {
                                         ScaffoldMessenger.of(
                                                 context)

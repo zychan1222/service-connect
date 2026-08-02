@@ -30,6 +30,10 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
       case 'booking_accepted': return Icons.check_circle_rounded;
       case 'booking_declined': return Icons.cancel_rounded;
       case 'booking_cancelled': return Icons.cancel_outlined;
+      case 'time_proposed': return Icons.schedule_rounded;
+      case 'time_accepted': return Icons.event_available_rounded;
+      case 'time_declined': return Icons.event_busy_rounded;
+      case 'provider_verified': return Icons.verified_rounded;
       default: return Icons.notifications_rounded;
     }
   }
@@ -40,6 +44,10 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
       case 'booking_accepted': return const Color(0xFF10B981);
       case 'booking_declined': return Colors.red;
       case 'booking_cancelled': return const Color(0xFFF59E0B);
+      case 'time_proposed': return const Color(0xFFF59E0B);
+      case 'time_accepted': return const Color(0xFF10B981);
+      case 'time_declined': return Colors.red;
+      case 'provider_verified': return const Color(0xFF10B981);
       default: return _textSecondary;
     }
   }

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:intl/intl.dart';
 import 'review_screen.dart';
 import '../../services/notification_service.dart';
 
@@ -37,6 +38,167 @@ class ClientBookingsScreen extends StatelessWidget {
       case 'Urgent': return const Color(0xFFF59E0B);
       case 'Emergency': return Colors.red;
       default: return const Color(0xFF10B981);
+    }
+  }
+
+  // ---- Time proposal helpers ----
+
+  Future<void> _showProposeTimeDialog(BuildContext context, String bookingId,
+      Map<String, dynamic> data, String proposedBy) async {
+    DateTime selectedDate = DateTime.now().add(const Duration(days: 1));
+    TimeOfDay selectedTime = const TimeOfDay(hour: 10, minute: 0);
+
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => StatefulBuilder(
+        builder: (context, setState) => AlertDialog(
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+          title: const Text('Propose New Time',
+              style: TextStyle(fontWeight: FontWeight.w700, fontSize: 16)),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Container(
+                decoration: BoxDecoration(
+                  color: _bg,
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: ListTile(
+                  leading: const Icon(Icons.calendar_today_rounded,
+                      color: _primary, size: 18),
+                  title: Text(DateFormat('EEE, MMM d, yyyy').format(selectedDate),
+                      style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600)),
+                  onTap: () async {
+                    final picked = await showDatePicker(
+                      context: context,
+                      initialDate: selectedDate,
+                      firstDate: DateTime.now(),
+                      lastDate: DateTime.now().add(const Duration(days: 180)),
+                    );
+                    if (picked != null) setState(() => selectedDate = picked);
+                  },
+                ),
+              ),
+              const SizedBox(height: 10),
+              Container(
+                decoration: BoxDecoration(
+                  color: _bg,
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: ListTile(
+                  leading: const Icon(Icons.access_time_rounded,
+                      color: _primary, size: 18),
+                  title: Text(selectedTime.format(context),
+                      style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600)),
+                  onTap: () async {
+                    final picked = await showTimePicker(
+                        context: context, initialTime: selectedTime);
+                    if (picked != null) setState(() => selectedTime = picked);
+                  },
+                ),
+              ),
+            ],
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(dialogContext, false),
+              child: const Text('Cancel'),
+            ),
+            ElevatedButton(
+              onPressed: () => Navigator.pop(dialogContext, true),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: _primary,
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+              ),
+              child: const Text('Send Proposal', style: TextStyle(color: Colors.white)),
+            ),
+          ],
+        ),
+      ),
+    );
+
+    if (confirmed != true) return;
+    if (!context.mounted) return;
+
+    final formattedDate = DateFormat('yyyy-MM-dd').format(selectedDate);
+    final formattedTime = selectedTime.format(context);
+
+    try {
+      await FirebaseFirestore.instance.collection('bookings').doc(bookingId).update({
+        'proposedDate': formattedDate,
+        'proposedTime': formattedTime,
+        'proposedBy': proposedBy,
+        'proposalStatus': 'pending',
+      });
+
+      await NotificationService.sendNotification(
+        toUserId: data['providerId'],
+        title: 'New Time Proposed',
+        body: '${data['clientName']} proposed $formattedDate at $formattedTime for your booking',
+        type: 'time_proposed',
+        bookingId: bookingId,
+      );
+    } catch (e) {
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Failed to send time proposal')),
+        );
+      }
+    }
+  }
+
+  Future<void> _acceptProposedTime(
+      BuildContext context, String bookingId, Map<String, dynamic> data) async {
+    try {
+      final newDate = data['proposedDate'];
+      final newTime = data['proposedTime'];
+      await FirebaseFirestore.instance.collection('bookings').doc(bookingId).update({
+        'date': newDate,
+        'time': newTime,
+        'proposedDate': FieldValue.delete(),
+        'proposedTime': FieldValue.delete(),
+        'proposedBy': FieldValue.delete(),
+        'proposalStatus': 'none',
+      });
+      await NotificationService.sendNotification(
+        toUserId: data['providerId'],
+        title: 'Time Proposal Accepted',
+        body: '${data['clientName']} accepted the new time: $newDate at $newTime',
+        type: 'time_accepted',
+        bookingId: bookingId,
+      );
+    } catch (e) {
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Failed to accept the proposed time')),
+        );
+      }
+    }
+  }
+
+  Future<void> _declineProposedTime(
+      BuildContext context, String bookingId, Map<String, dynamic> data) async {
+    try {
+      await FirebaseFirestore.instance.collection('bookings').doc(bookingId).update({
+        'proposedDate': FieldValue.delete(),
+        'proposedTime': FieldValue.delete(),
+        'proposedBy': FieldValue.delete(),
+        'proposalStatus': 'none',
+      });
+      await NotificationService.sendNotification(
+        toUserId: data['providerId'],
+        title: 'Time Proposal Declined',
+        body: '${data['clientName']} declined the proposed time change',
+        type: 'time_declined',
+        bookingId: bookingId,
+      );
+    } catch (e) {
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Failed to decline the proposed time')),
+        );
+      }
     }
   }
 
@@ -103,11 +265,16 @@ class ClientBookingsScreen extends StatelessWidget {
             itemBuilder: (context, index) {
               final data =
                   bookings[index].data() as Map<String, dynamic>;
+              final bookingId = bookings[index].id;
               final status = data['status'] ?? 'pending';
               final urgency = data['urgency'] ?? 'Normal';
               final budgetMin = data['budgetMin'] ?? 0;
               final budgetMax = data['budgetMax'] ?? 0;
               final hasBudget = budgetMin > 0 || budgetMax > 0;
+              final proposalStatus = data['proposalStatus'] ?? 'none';
+              final proposedBy = data['proposedBy'];
+              final canProposeTime =
+                  status == 'pending' || status == 'accepted';
 
               return Container(
                 margin: const EdgeInsets.only(bottom: 14),
@@ -221,6 +388,176 @@ class ClientBookingsScreen extends StatelessWidget {
                         ),
                       ),
 
+                      // ---- Time proposal section ----
+                      if (proposalStatus == 'pending' &&
+                          proposedBy == 'provider') ...[
+                        const SizedBox(height: 10),
+                        Container(
+                          width: double.infinity,
+                          padding: const EdgeInsets.all(12),
+                          decoration: BoxDecoration(
+                            color: const Color(0xFFFFFBEB),
+                            borderRadius: BorderRadius.circular(12),
+                            border: Border.all(
+                                color: const Color(0xFFF59E0B)
+                                    .withOpacity(0.3)),
+                          ),
+                          child: Column(
+                            crossAxisAlignment:
+                                CrossAxisAlignment.start,
+                            children: [
+                              Row(
+                                children: [
+                                  const Icon(Icons.schedule_rounded,
+                                      size: 15,
+                                      color: Color(0xFFF59E0B)),
+                                  const SizedBox(width: 8),
+                                  const Expanded(
+                                    child: Text(
+                                        'Provider proposed a new time',
+                                        style: TextStyle(
+                                            fontSize: 12,
+                                            fontWeight: FontWeight.w700,
+                                            color: Color(0xFFF59E0B))),
+                                  ),
+                                ],
+                              ),
+                              const SizedBox(height: 6),
+                              Text(
+                                  '${data['proposedDate']} at ${data['proposedTime']}',
+                                  style: const TextStyle(
+                                      fontSize: 13,
+                                      fontWeight: FontWeight.w600,
+                                      color: _textPrimary)),
+                              const SizedBox(height: 10),
+                              Row(
+                                children: [
+                                  Expanded(
+                                    child: OutlinedButton(
+                                      onPressed: () =>
+                                          _showProposeTimeDialog(context,
+                                              bookingId, data, 'client'),
+                                      style: OutlinedButton.styleFrom(
+                                        foregroundColor: _primary,
+                                        side: const BorderSide(
+                                            color: _primary),
+                                        padding: const EdgeInsets
+                                            .symmetric(vertical: 10),
+                                        shape: RoundedRectangleBorder(
+                                            borderRadius:
+                                                BorderRadius.circular(
+                                                    10)),
+                                      ),
+                                      child: const Text('Counter',
+                                          style: TextStyle(
+                                              fontWeight: FontWeight.w600,
+                                              fontSize: 12)),
+                                    ),
+                                  ),
+                                  const SizedBox(width: 8),
+                                  Expanded(
+                                    child: OutlinedButton(
+                                      onPressed: () =>
+                                          _declineProposedTime(
+                                              context, bookingId, data),
+                                      style: OutlinedButton.styleFrom(
+                                        foregroundColor: Colors.red,
+                                        side: const BorderSide(
+                                            color: Color(0xFFE2E8F0)),
+                                        padding: const EdgeInsets
+                                            .symmetric(vertical: 10),
+                                        shape: RoundedRectangleBorder(
+                                            borderRadius:
+                                                BorderRadius.circular(
+                                                    10)),
+                                      ),
+                                      child: const Text('Decline',
+                                          style: TextStyle(
+                                              fontWeight: FontWeight.w600,
+                                              fontSize: 12)),
+                                    ),
+                                  ),
+                                  const SizedBox(width: 8),
+                                  Expanded(
+                                    child: ElevatedButton(
+                                      onPressed: () =>
+                                          _acceptProposedTime(
+                                              context, bookingId, data),
+                                      style: ElevatedButton.styleFrom(
+                                        backgroundColor:
+                                            const Color(0xFF10B981),
+                                        elevation: 0,
+                                        padding: const EdgeInsets
+                                            .symmetric(vertical: 10),
+                                        shape: RoundedRectangleBorder(
+                                            borderRadius:
+                                                BorderRadius.circular(
+                                                    10)),
+                                      ),
+                                      child: const Text('Accept',
+                                          style: TextStyle(
+                                              color: Colors.white,
+                                              fontWeight: FontWeight.w600,
+                                              fontSize: 12)),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ],
+                          ),
+                        ),
+                      ] else if (proposalStatus == 'pending' &&
+                          proposedBy == 'client') ...[
+                        const SizedBox(height: 10),
+                        Container(
+                          width: double.infinity,
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 12, vertical: 10),
+                          decoration: BoxDecoration(
+                            color: _bg,
+                            borderRadius: BorderRadius.circular(10),
+                            border: Border.all(
+                                color: const Color(0xFFE2E8F0)),
+                          ),
+                          child: Row(
+                            children: [
+                              const Icon(Icons.hourglass_top_rounded,
+                                  size: 13, color: _textSecondary),
+                              const SizedBox(width: 8),
+                              Expanded(
+                                child: Text(
+                                    'Waiting for provider to respond to ${data['proposedDate']} at ${data['proposedTime']}',
+                                    style: const TextStyle(
+                                        fontSize: 12,
+                                        color: _textSecondary)),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ] else if (canProposeTime) ...[
+                        const SizedBox(height: 8),
+                        Align(
+                          alignment: Alignment.centerLeft,
+                          child: TextButton.icon(
+                            onPressed: () => _showProposeTimeDialog(
+                                context, bookingId, data, 'client'),
+                            icon: const Icon(Icons.edit_calendar_rounded,
+                                size: 15, color: _primary),
+                            label: const Text('Propose New Time',
+                                style: TextStyle(
+                                    color: _primary,
+                                    fontWeight: FontWeight.w600,
+                                    fontSize: 12)),
+                            style: TextButton.styleFrom(
+                              padding: EdgeInsets.zero,
+                              minimumSize: const Size(0, 0),
+                              tapTargetSize:
+                                  MaterialTapTargetSize.shrinkWrap,
+                            ),
+                          ),
+                        ),
+                      ],
+
                       const SizedBox(height: 10),
 
                       // Tags
@@ -298,6 +635,93 @@ class ClientBookingsScreen extends StatelessWidget {
                         ),
                       ],
 
+                      // Verified provider contact — shown once accepted/completed
+                      if (status == 'accepted' || status == 'completed') ...[
+                        const SizedBox(height: 10),
+                        FutureBuilder<DocumentSnapshot>(
+                          future: FirebaseFirestore.instance
+                              .collection('providers')
+                              .doc(data['providerId'])
+                              .get(),
+                          builder: (context, provSnap) {
+                            if (!provSnap.hasData ||
+                                !provSnap.data!.exists) {
+                              return const SizedBox.shrink();
+                            }
+                            final provData = provSnap.data!.data()
+                                as Map<String, dynamic>;
+                            if (provData['isVerified'] != true) {
+                              return const SizedBox.shrink();
+                            }
+                            final phone = provData['phone'] ?? '';
+                            final email = provData['email'] ?? '';
+                            if (phone.isEmpty && email.isEmpty) {
+                              return const SizedBox.shrink();
+                            }
+                            return Container(
+                              width: double.infinity,
+                              padding: const EdgeInsets.all(12),
+                              decoration: BoxDecoration(
+                                color: const Color(0xFFECFDF5),
+                                borderRadius: BorderRadius.circular(10),
+                                border: Border.all(
+                                    color: const Color(0xFF10B981)
+                                        .withOpacity(0.2)),
+                              ),
+                              child: Column(
+                                crossAxisAlignment:
+                                    CrossAxisAlignment.start,
+                                children: [
+                                  Row(
+                                    children: [
+                                      const Icon(Icons.verified_rounded,
+                                          size: 13,
+                                          color: Color(0xFF10B981)),
+                                      const SizedBox(width: 6),
+                                      const Text('Verified Provider Contact',
+                                          style: TextStyle(
+                                              fontSize: 11,
+                                              fontWeight: FontWeight.w600,
+                                              color: Color(0xFF10B981))),
+                                    ],
+                                  ),
+                                  if (phone.isNotEmpty) ...[
+                                    const SizedBox(height: 6),
+                                    Row(
+                                      children: [
+                                        const Icon(Icons.phone_rounded,
+                                            size: 13,
+                                            color: _textSecondary),
+                                        const SizedBox(width: 6),
+                                        Text(phone,
+                                            style: const TextStyle(
+                                                fontSize: 12,
+                                                color: _textPrimary)),
+                                      ],
+                                    ),
+                                  ],
+                                  if (email.isNotEmpty) ...[
+                                    const SizedBox(height: 4),
+                                    Row(
+                                      children: [
+                                        const Icon(Icons.email_rounded,
+                                            size: 13,
+                                            color: _textSecondary),
+                                        const SizedBox(width: 6),
+                                        Text(email,
+                                            style: const TextStyle(
+                                                fontSize: 12,
+                                                color: _textPrimary)),
+                                      ],
+                                    ),
+                                  ],
+                                ],
+                              ),
+                            );
+                          },
+                        ),
+                      ],
+
                       // Completed — leave review
                       if (status == 'completed' &&
                           (data['reviewed'] != true)) ...[
@@ -339,7 +763,7 @@ class ClientBookingsScreen extends StatelessWidget {
                                 builder: (_) => ReviewScreen(
                                   providerId: data['providerId'],
                                   providerName: data['providerName'],
-                                  bookingId: bookings[index].id,
+                                  bookingId: bookingId,
                                 ),
                               ),
                             ),
@@ -413,7 +837,7 @@ class ClientBookingsScreen extends StatelessWidget {
                                       Navigator.pop(context);
                                       await FirebaseFirestore.instance
                                           .collection('bookings')
-                                          .doc(bookings[index].id)
+                                          .doc(bookingId)
                                           .update(
                                               {'status': 'cancelled'});
                                       await NotificationService
@@ -423,7 +847,7 @@ class ClientBookingsScreen extends StatelessWidget {
                                         body:
                                             '${data['clientName']} has cancelled their booking on ${data['date']}',
                                         type: 'booking_cancelled',
-                                        bookingId: bookings[index].id,
+                                        bookingId: bookingId,
                                       );
                                     },
                                     child: const Text('Cancel booking',

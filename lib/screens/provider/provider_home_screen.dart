@@ -3,6 +3,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'provider_services_screen.dart';
 import 'provider_reviews_screen.dart';
+import 'provider_verification_screen.dart';
 import '../auth/login_screen.dart';
 import '../../services/notification_service.dart';
 import '../../screens/notifications_screen.dart';
@@ -24,67 +25,87 @@ class _ProviderHomeScreenState extends State<ProviderHomeScreen> {
   Widget build(BuildContext context) {
     final user = FirebaseAuth.instance.currentUser;
 
-    return Scaffold(
-      backgroundColor: _bg,
-      appBar: AppBar(
-        backgroundColor: _primary,
-        elevation: 0,
-        title: Row(
-          children: [
-            Container(
-              width: 32,
-              height: 32,
-              decoration: BoxDecoration(
-                color: Colors.white.withOpacity(0.2),
-                borderRadius: BorderRadius.circular(9),
-              ),
-              child: const Icon(Icons.handyman_rounded,
-                  color: Colors.white, size: 17),
+    return StreamBuilder<DocumentSnapshot>(
+      stream: FirebaseFirestore.instance
+          .collection('providers')
+          .doc(user?.uid)
+          .snapshots(),
+      builder: (context, providerSnap) {
+        final providerData = providerSnap.hasData &&
+                providerSnap.data!.exists
+            ? providerSnap.data!.data() as Map<String, dynamic>
+            : null;
+        final isVerified = providerData?['isVerified'] ?? false;
+        final verificationStatus =
+            providerData?['verificationStatus'] ?? 'none';
+
+        return Scaffold(
+          backgroundColor: _bg,
+          appBar: AppBar(
+            backgroundColor: _primary,
+            elevation: 0,
+            title: Row(
+              children: [
+                Container(
+                  width: 32,
+                  height: 32,
+                  decoration: BoxDecoration(
+                    color: Colors.white.withOpacity(0.2),
+                    borderRadius: BorderRadius.circular(9),
+                  ),
+                  child: const Icon(Icons.handyman_rounded,
+                      color: Colors.white, size: 17),
+                ),
+                const SizedBox(width: 10),
+                const Text('ServiceConnect',
+                    style: TextStyle(
+                        color: Colors.white,
+                        fontSize: 16,
+                        fontWeight: FontWeight.w700,
+                        letterSpacing: -0.3)),
+              ],
             ),
-            const SizedBox(width: 10),
-            const Text('ServiceConnect',
-                style: TextStyle(
-                    color: Colors.white,
-                    fontSize: 16,
-                    fontWeight: FontWeight.w700,
-                    letterSpacing: -0.3)),
-          ],
-        ),
-        actions: [
-          IconButton(
-            icon: Container(
-              width: 34,
-              height: 34,
-              decoration: BoxDecoration(
-                color: Colors.white.withOpacity(0.15),
-                borderRadius: BorderRadius.circular(10),
+            actions: [
+              IconButton(
+                icon: Container(
+                  width: 34,
+                  height: 34,
+                  decoration: BoxDecoration(
+                    color: Colors.white.withOpacity(0.15),
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                  child: const Icon(Icons.logout_rounded,
+                      color: Colors.white, size: 17),
+                ),
+                onPressed: () async {
+                  await FirebaseAuth.instance.signOut();
+                  if (context.mounted) {
+                    Navigator.pushReplacement(
+                        context,
+                        MaterialPageRoute(
+                            builder: (_) => const LoginScreen()));
+                  }
+                },
               ),
-              child: const Icon(Icons.logout_rounded,
-                  color: Colors.white, size: 17),
-            ),
-            onPressed: () async {
-              await FirebaseAuth.instance.signOut();
-              if (context.mounted) {
-                Navigator.pushReplacement(context,
-                    MaterialPageRoute(
-                        builder: (_) => const LoginScreen()));
-              }
-            },
+              const SizedBox(width: 8),
+            ],
           ),
-          const SizedBox(width: 8),
-        ],
-      ),
-      body: IndexedStack(
-        index: _currentIndex,
-        children: [
-          _BookingsTab(user: user),
-          const ProviderServicesScreen(),
-          const ProviderReviewsScreen(),
-          const NotificationsScreen(),
-          _ProviderProfileTab(user: user),
-        ],
-      ),
-      bottomNavigationBar: _buildBottomNav(user),
+          body: IndexedStack(
+            index: _currentIndex,
+            children: [
+              _BookingsTab(user: user, isVerified: isVerified),
+              isVerified
+                  ? const ProviderServicesScreen()
+                  : _LockedServicesTab(
+                      verificationStatus: verificationStatus),
+              const ProviderReviewsScreen(),
+              const NotificationsScreen(),
+              _ProviderProfileTab(user: user),
+            ],
+          ),
+          bottomNavigationBar: _buildBottomNav(user),
+        );
+      },
     );
   }
 
@@ -135,10 +156,11 @@ class _ProviderHomeScreenState extends State<ProviderHomeScreen> {
     );
   }
 
-  Widget _navItem(
-      {required int index,
-      required IconData icon,
-      required String label}) {
+  Widget _navItem({
+    required int index,
+    required IconData icon,
+    required String label,
+  }) {
     final isSelected = _currentIndex == index;
     return Expanded(
       child: GestureDetector(
@@ -261,10 +283,102 @@ class _ProviderHomeScreenState extends State<ProviderHomeScreen> {
   }
 }
 
-// ── Bookings Tab ─────────────────────────────────────────────────────────────
+// ── Locked Services Tab ───────────────────────────────────────────────────────
+class _LockedServicesTab extends StatelessWidget {
+  final String verificationStatus;
+  const _LockedServicesTab({required this.verificationStatus});
+
+  static const _primary = Color(0xFF2563EB);
+  static const _textPrimary = Color(0xFF0F172A);
+  static const _textSecondary = Color(0xFF64748B);
+
+  @override
+  Widget build(BuildContext context) {
+    final isPending = verificationStatus == 'pending';
+
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.all(32),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Container(
+              width: 80,
+              height: 80,
+              decoration: BoxDecoration(
+                color: isPending
+                    ? const Color(0xFFFFFBEB)
+                    : _primary.withOpacity(0.08),
+                borderRadius: BorderRadius.circular(24),
+              ),
+              child: Icon(
+                isPending
+                    ? Icons.schedule_rounded
+                    : Icons.lock_rounded,
+                color: isPending
+                    ? const Color(0xFFF59E0B)
+                    : _primary,
+                size: 40,
+              ),
+            ),
+            const SizedBox(height: 24),
+            Text(
+              isPending
+                  ? 'Verification Pending'
+                  : 'Verification Required',
+              style: const TextStyle(
+                  fontSize: 18,
+                  fontWeight: FontWeight.w700,
+                  color: _textPrimary),
+            ),
+            const SizedBox(height: 8),
+            Text(
+              isPending
+                  ? 'Your verification request is under review. You will be notified once the admin has made a decision.'
+                  : 'You need to complete verification before you can offer services. Tap the button below to get started.',
+              textAlign: TextAlign.center,
+              style: const TextStyle(
+                  color: _textSecondary, fontSize: 13, height: 1.5),
+            ),
+            const SizedBox(height: 28),
+            if (!isPending)
+              SizedBox(
+                width: double.infinity,
+                height: 52,
+                child: ElevatedButton.icon(
+                  onPressed: () => Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                        builder: (_) =>
+                            const ProviderVerificationScreen()),
+                  ),
+                  icon: const Icon(Icons.verified_user_rounded,
+                      color: Colors.white, size: 18),
+                  label: const Text('Submit Verification',
+                      style: TextStyle(
+                          color: Colors.white,
+                          fontWeight: FontWeight.w600,
+                          fontSize: 15)),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: _primary,
+                    elevation: 0,
+                    shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(14)),
+                  ),
+                ),
+              ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+// ── Bookings Tab ──────────────────────────────────────────────────────────────
 class _BookingsTab extends StatefulWidget {
   final user;
-  const _BookingsTab({required this.user});
+  final bool isVerified;
+  const _BookingsTab({required this.user, required this.isVerified});
 
   @override
   State<_BookingsTab> createState() => _BookingsTabState();
@@ -313,8 +427,7 @@ class _BookingsTabState extends State<_BookingsTab> {
   }
 
   Widget _tag(String label, Color bg, Color color) => Container(
-        padding:
-            const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
         decoration: BoxDecoration(
           color: bg,
           borderRadius: BorderRadius.circular(8),
@@ -331,18 +444,14 @@ class _BookingsTabState extends State<_BookingsTab> {
     return bookings.where((doc) {
       final data = doc.data() as Map<String, dynamic>;
       final status = data['status'] ?? 'pending';
-      final clientName =
-          (data['clientName'] ?? '').toLowerCase();
+      final clientName = (data['clientName'] ?? '').toLowerCase();
       final category = (data['category'] ?? '').toLowerCase();
       final q = _searchQuery.toLowerCase();
-
       final matchesFilter = _selectedFilter == 'All' ||
-          status.toLowerCase() ==
-              _selectedFilter.toLowerCase();
+          status.toLowerCase() == _selectedFilter.toLowerCase();
       final matchesSearch = q.isEmpty ||
           clientName.contains(q) ||
           category.contains(q);
-
       return matchesFilter && matchesSearch;
     }).toList();
   }
@@ -402,7 +511,6 @@ class _BookingsTabState extends State<_BookingsTab> {
                   },
                 ),
                 const SizedBox(height: 20),
-
                 // Search bar
                 Container(
                   decoration: BoxDecoration(
@@ -453,6 +561,60 @@ class _BookingsTabState extends State<_BookingsTab> {
             ),
           ),
 
+          // Unverified banner
+          if (!widget.isVerified) ...[
+            Padding(
+              padding: const EdgeInsets.fromLTRB(20, 16, 20, 0),
+              child: Container(
+                padding: const EdgeInsets.all(14),
+                decoration: BoxDecoration(
+                  color: const Color(0xFFFFFBEB),
+                  borderRadius: BorderRadius.circular(14),
+                  border: Border.all(
+                      color: const Color(0xFFF59E0B).withOpacity(0.4)),
+                ),
+                child: Row(
+                  children: [
+                    const Icon(Icons.warning_amber_rounded,
+                        color: Color(0xFFF59E0B), size: 20),
+                    const SizedBox(width: 10),
+                    const Expanded(
+                      child: Text(
+                        'Your account is not yet verified. Complete verification to start offering services.',
+                        style: TextStyle(
+                            color: Color(0xFFF59E0B),
+                            fontSize: 12,
+                            height: 1.4),
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    GestureDetector(
+                      onTap: () => Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                            builder: (_) =>
+                                const ProviderVerificationScreen()),
+                      ),
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 10, vertical: 6),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFFF59E0B),
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        child: const Text('Verify',
+                            style: TextStyle(
+                                color: Colors.white,
+                                fontSize: 12,
+                                fontWeight: FontWeight.w600)),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ],
+
           const SizedBox(height: 16),
 
           // Filter chips
@@ -462,8 +624,7 @@ class _BookingsTabState extends State<_BookingsTab> {
               scrollDirection: Axis.horizontal,
               padding: const EdgeInsets.symmetric(horizontal: 20),
               itemCount: _filters.length,
-              separatorBuilder: (_, __) =>
-                  const SizedBox(width: 8),
+              separatorBuilder: (_, __) => const SizedBox(width: 8),
               itemBuilder: (context, index) {
                 final filter = _filters[index];
                 final isSelected = _selectedFilter == filter;
@@ -475,7 +636,8 @@ class _BookingsTabState extends State<_BookingsTab> {
                     padding: const EdgeInsets.symmetric(
                         horizontal: 16, vertical: 8),
                     decoration: BoxDecoration(
-                      color: isSelected ? _primary : Colors.white,
+                      color:
+                          isSelected ? _primary : Colors.white,
                       borderRadius: BorderRadius.circular(20),
                       border: Border.all(
                         color: isSelected
@@ -569,7 +731,8 @@ class _BookingsTabState extends State<_BookingsTab> {
               }
 
               return Padding(
-                padding: const EdgeInsets.fromLTRB(20, 0, 20, 4),
+                padding:
+                    const EdgeInsets.fromLTRB(20, 0, 20, 4),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
@@ -583,39 +746,52 @@ class _BookingsTabState extends State<_BookingsTab> {
                     const SizedBox(height: 12),
                     ListView.builder(
                       shrinkWrap: true,
-                      physics: const NeverScrollableScrollPhysics(),
+                      physics:
+                          const NeverScrollableScrollPhysics(),
                       itemCount: filtered.length,
                       itemBuilder: (context, index) {
                         final data = filtered[index].data()
                             as Map<String, dynamic>;
-                        final status = data['status'] ?? 'pending';
+                        final status =
+                            data['status'] ?? 'pending';
                         final urgency =
                             data['urgency'] ?? 'Normal';
-                        final budgetMin = data['budgetMin'] ?? 0;
-                        final budgetMax = data['budgetMax'] ?? 0;
+                        final budgetMin =
+                            data['budgetMin'] ?? 0;
+                        final budgetMax =
+                            data['budgetMax'] ?? 0;
                         final hasBudget =
                             budgetMin > 0 || budgetMax > 0;
+                        final proposedDate =
+                            data['proposedDate'] ?? '';
+                        final proposedTime =
+                            data['proposedTime'] ?? '';
+                        final hasProposal =
+                            proposedDate.isNotEmpty;
 
                         return Container(
-                          margin: const EdgeInsets.only(bottom: 12),
+                          margin:
+                              const EdgeInsets.only(bottom: 12),
                           decoration: BoxDecoration(
                             color: Colors.white,
-                            borderRadius: BorderRadius.circular(16),
+                            borderRadius:
+                                BorderRadius.circular(16),
                             border: urgency == 'Emergency'
                                 ? Border.all(
-                                    color:
-                                        Colors.red.withOpacity(0.3),
+                                    color: Colors.red
+                                        .withOpacity(0.3),
                                     width: 1.5)
                                 : urgency == 'Urgent'
                                     ? Border.all(
-                                        color: const Color(0xFFF59E0B)
+                                        color: const Color(
+                                                0xFFF59E0B)
                                             .withOpacity(0.3),
                                         width: 1.5)
                                     : null,
                             boxShadow: [
                               BoxShadow(
-                                color:
-                                    Colors.black.withOpacity(0.05),
+                                color: Colors.black
+                                    .withOpacity(0.05),
                                 blurRadius: 12,
                                 offset: const Offset(0, 4),
                               ),
@@ -630,30 +806,34 @@ class _BookingsTabState extends State<_BookingsTab> {
                                 // Client info + status
                                 Row(
                                   mainAxisAlignment:
-                                      MainAxisAlignment.spaceBetween,
+                                      MainAxisAlignment
+                                          .spaceBetween,
                                   children: [
                                     Row(
                                       children: [
                                         Container(
                                           width: 40,
                                           height: 40,
-                                          decoration: BoxDecoration(
+                                          decoration:
+                                              BoxDecoration(
                                             color: _primary
                                                 .withOpacity(0.1),
                                             borderRadius:
-                                                BorderRadius.circular(
-                                                    12),
+                                                BorderRadius
+                                                    .circular(12),
                                           ),
                                           child: Center(
                                             child: Text(
                                               (data['clientName'] ??
                                                       'C')[0]
                                                   .toUpperCase(),
-                                              style: const TextStyle(
-                                                  color: _primary,
-                                                  fontWeight:
-                                                      FontWeight.w700,
-                                                  fontSize: 16),
+                                              style:
+                                                  const TextStyle(
+                                                color: _primary,
+                                                fontWeight:
+                                                    FontWeight.w700,
+                                                fontSize: 16,
+                                              ),
                                             ),
                                           ),
                                         ),
@@ -666,18 +846,22 @@ class _BookingsTabState extends State<_BookingsTab> {
                                             Text(
                                                 data['clientName'] ??
                                                     'Client',
-                                                style: const TextStyle(
-                                                    fontWeight:
-                                                        FontWeight.w700,
-                                                    fontSize: 14,
-                                                    color:
-                                                        _textPrimary)),
+                                                style:
+                                                    const TextStyle(
+                                                  fontWeight:
+                                                      FontWeight.w700,
+                                                  fontSize: 14,
+                                                  color: _textPrimary,
+                                                )),
                                             Text(
-                                                data['category'] ?? '',
-                                                style: const TextStyle(
-                                                    color:
-                                                        _textSecondary,
-                                                    fontSize: 12)),
+                                                data['category'] ??
+                                                    '',
+                                                style:
+                                                    const TextStyle(
+                                                  color:
+                                                      _textSecondary,
+                                                  fontSize: 12,
+                                                )),
                                           ],
                                         ),
                                       ],
@@ -695,12 +879,13 @@ class _BookingsTabState extends State<_BookingsTab> {
                                       child: Text(
                                           status.toUpperCase(),
                                           style: TextStyle(
-                                              fontSize: 10,
-                                              fontWeight:
-                                                  FontWeight.w700,
-                                              color:
-                                                  _statusColor(status),
-                                              letterSpacing: 0.5)),
+                                            fontSize: 10,
+                                            fontWeight:
+                                                FontWeight.w700,
+                                            color:
+                                                _statusColor(status),
+                                            letterSpacing: 0.5,
+                                          )),
                                     ),
                                   ],
                                 ),
@@ -709,7 +894,8 @@ class _BookingsTabState extends State<_BookingsTab> {
 
                                 // Date & time
                                 Container(
-                                  padding: const EdgeInsets.all(12),
+                                  padding:
+                                      const EdgeInsets.all(12),
                                   decoration: BoxDecoration(
                                     color: _bg,
                                     borderRadius:
@@ -718,7 +904,8 @@ class _BookingsTabState extends State<_BookingsTab> {
                                   child: Row(
                                     children: [
                                       const Icon(
-                                          Icons.calendar_today_rounded,
+                                          Icons
+                                              .calendar_today_rounded,
                                           size: 14,
                                           color: _textSecondary),
                                       const SizedBox(width: 6),
@@ -739,6 +926,188 @@ class _BookingsTabState extends State<_BookingsTab> {
                                     ],
                                   ),
                                 ),
+
+                                // Proposed time banner
+                                if (hasProposal &&
+                                    status == 'accepted') ...[
+                                  const SizedBox(height: 10),
+                                  Container(
+                                    padding:
+                                        const EdgeInsets.all(12),
+                                    decoration: BoxDecoration(
+                                      color: const Color(0xFFEFF6FF),
+                                      borderRadius:
+                                          BorderRadius.circular(10),
+                                      border: Border.all(
+                                          color: const Color(
+                                                  0xFF2563EB)
+                                              .withOpacity(0.2)),
+                                    ),
+                                    child: Column(
+                                      crossAxisAlignment:
+                                          CrossAxisAlignment.start,
+                                      children: [
+                                        const Row(
+                                          children: [
+                                            Icon(
+                                                Icons
+                                                    .schedule_rounded,
+                                                color:
+                                                    Color(0xFF2563EB),
+                                                size: 14),
+                                            SizedBox(width: 6),
+                                            Text(
+                                                'Client proposed a new time',
+                                                style: TextStyle(
+                                                    color: Color(
+                                                        0xFF2563EB),
+                                                    fontSize: 12,
+                                                    fontWeight:
+                                                        FontWeight
+                                                            .w600)),
+                                          ],
+                                        ),
+                                        const SizedBox(height: 4),
+                                        Text(
+                                            '$proposedDate at $proposedTime',
+                                            style: const TextStyle(
+                                                color:
+                                                    Color(0xFF2563EB),
+                                                fontSize: 13,
+                                                fontWeight:
+                                                    FontWeight.w700)),
+                                        if ((data['proposalReason'] ??
+                                                '')
+                                            .isNotEmpty) ...[
+                                          const SizedBox(height: 4),
+                                          Text(
+                                              data['proposalReason'],
+                                              style: const TextStyle(
+                                                  color:
+                                                      Color(0xFF64748B),
+                                                  fontSize: 12)),
+                                        ],
+                                        const SizedBox(height: 10),
+                                        Row(
+                                          children: [
+                                            Expanded(
+                                              child: ElevatedButton(
+                                                onPressed: () async {
+                                                  await FirebaseFirestore
+                                                      .instance
+                                                      .collection(
+                                                          'bookings')
+                                                      .doc(filtered[
+                                                              index]
+                                                          .id)
+                                                      .update({
+                                                    'date':
+                                                        proposedDate,
+                                                    'time':
+                                                        proposedTime,
+                                                    'proposedDate': '',
+                                                    'proposedTime': '',
+                                                    'proposalReason':
+                                                        '',
+                                                  });
+                                                  await NotificationService
+                                                      .sendNotification(
+                                                    toUserId:
+                                                        data['clientId'],
+                                                    title:
+                                                        'New Time Accepted',
+                                                    body:
+                                                        '${data['providerName'] ?? 'Your provider'} has accepted your proposed time: $proposedDate at $proposedTime',
+                                                    type:
+                                                        'time_accepted',
+                                                    bookingId:
+                                                        filtered[index]
+                                                            .id,
+                                                  );
+                                                },
+                                                style: ElevatedButton
+                                                    .styleFrom(
+                                                  backgroundColor:
+                                                      const Color(
+                                                          0xFF10B981),
+                                                  elevation: 0,
+                                                  shape: RoundedRectangleBorder(
+                                                      borderRadius:
+                                                          BorderRadius
+                                                              .circular(
+                                                                  8)),
+                                                ),
+                                                child: const Text(
+                                                    'Accept',
+                                                    style: TextStyle(
+                                                        color: Colors
+                                                            .white,
+                                                        fontSize: 12,
+                                                        fontWeight:
+                                                            FontWeight
+                                                                .w600)),
+                                              ),
+                                            ),
+                                            const SizedBox(width: 8),
+                                            Expanded(
+                                              child: OutlinedButton(
+                                                onPressed: () async {
+                                                  await FirebaseFirestore
+                                                      .instance
+                                                      .collection(
+                                                          'bookings')
+                                                      .doc(filtered[
+                                                              index]
+                                                          .id)
+                                                      .update({
+                                                    'proposedDate': '',
+                                                    'proposedTime': '',
+                                                    'proposalReason':
+                                                        '',
+                                                  });
+                                                  await NotificationService
+                                                      .sendNotification(
+                                                    toUserId:
+                                                        data['clientId'],
+                                                    title:
+                                                        'Time Proposal Declined',
+                                                    body:
+                                                        '${data['providerName'] ?? 'Your provider'} has kept the original booking time.',
+                                                    type:
+                                                        'time_declined',
+                                                    bookingId:
+                                                        filtered[index]
+                                                            .id,
+                                                  );
+                                                },
+                                                style: OutlinedButton
+                                                    .styleFrom(
+                                                  foregroundColor:
+                                                      _textSecondary,
+                                                  side: const BorderSide(
+                                                      color: Color(
+                                                          0xFFE2E8F0)),
+                                                  shape: RoundedRectangleBorder(
+                                                      borderRadius:
+                                                          BorderRadius
+                                                              .circular(
+                                                                  8)),
+                                                ),
+                                                child: const Text(
+                                                    'Keep Original',
+                                                    style: TextStyle(
+                                                        fontSize: 12,
+                                                        fontWeight:
+                                                            FontWeight
+                                                                .w600)),
+                                              ),
+                                            ),
+                                          ],
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                ],
 
                                 const SizedBox(height: 10),
 
@@ -805,7 +1174,8 @@ class _BookingsTabState extends State<_BookingsTab> {
                                   const SizedBox(height: 10),
                                   Container(
                                     width: double.infinity,
-                                    padding: const EdgeInsets.all(12),
+                                    padding:
+                                        const EdgeInsets.all(12),
                                     decoration: BoxDecoration(
                                       color: _bg,
                                       borderRadius:
@@ -818,7 +1188,8 @@ class _BookingsTabState extends State<_BookingsTab> {
                                       crossAxisAlignment:
                                           CrossAxisAlignment.start,
                                       children: [
-                                        const Text('Job Description',
+                                        const Text(
+                                            'Job Description',
                                             style: TextStyle(
                                                 fontSize: 11,
                                                 fontWeight:
@@ -826,7 +1197,8 @@ class _BookingsTabState extends State<_BookingsTab> {
                                                 color:
                                                     _textSecondary)),
                                         const SizedBox(height: 4),
-                                        Text(data['jobDescription'],
+                                        Text(
+                                            data['jobDescription'],
                                             style: const TextStyle(
                                                 color: _textPrimary,
                                                 fontSize: 13,
@@ -847,14 +1219,17 @@ class _BookingsTabState extends State<_BookingsTab> {
                                             await FirebaseFirestore
                                                 .instance
                                                 .collection('bookings')
-                                                .doc(filtered[index].id)
+                                                .doc(filtered[index]
+                                                    .id)
                                                 .update({
                                               'status': 'accepted'
                                             });
                                             await NotificationService
                                                 .sendNotification(
-                                              toUserId: data['clientId'],
-                                              title: 'Booking Accepted',
+                                              toUserId:
+                                                  data['clientId'],
+                                              title:
+                                                  'Booking Accepted',
                                               body:
                                                   '${data['providerName'] ?? 'Your provider'} has accepted your booking on ${data['date']}',
                                               type: 'booking_accepted',
@@ -867,10 +1242,12 @@ class _BookingsTabState extends State<_BookingsTab> {
                                             backgroundColor:
                                                 const Color(0xFF10B981),
                                             elevation: 0,
-                                            shape: RoundedRectangleBorder(
-                                                borderRadius:
-                                                    BorderRadius.circular(
-                                                        10)),
+                                            shape:
+                                                RoundedRectangleBorder(
+                                                    borderRadius:
+                                                        BorderRadius
+                                                            .circular(
+                                                                10)),
                                           ),
                                           child: const Text('Accept',
                                               style: TextStyle(
@@ -886,14 +1263,17 @@ class _BookingsTabState extends State<_BookingsTab> {
                                             await FirebaseFirestore
                                                 .instance
                                                 .collection('bookings')
-                                                .doc(filtered[index].id)
+                                                .doc(filtered[index]
+                                                    .id)
                                                 .update({
                                               'status': 'declined'
                                             });
                                             await NotificationService
                                                 .sendNotification(
-                                              toUserId: data['clientId'],
-                                              title: 'Booking Declined',
+                                              toUserId:
+                                                  data['clientId'],
+                                              title:
+                                                  'Booking Declined',
                                               body:
                                                   '${data['providerName'] ?? 'Your provider'} is unavailable on ${data['date']}.',
                                               type: 'booking_declined',
@@ -907,10 +1287,12 @@ class _BookingsTabState extends State<_BookingsTab> {
                                             side: const BorderSide(
                                                 color:
                                                     Color(0xFFE2E8F0)),
-                                            shape: RoundedRectangleBorder(
-                                                borderRadius:
-                                                    BorderRadius.circular(
-                                                        10)),
+                                            shape:
+                                                RoundedRectangleBorder(
+                                                    borderRadius:
+                                                        BorderRadius
+                                                            .circular(
+                                                                10)),
                                           ),
                                           child: const Text('Decline',
                                               style: TextStyle(
@@ -923,7 +1305,8 @@ class _BookingsTabState extends State<_BookingsTab> {
                                 ],
 
                                 // Accepted — mark complete + cancel
-                                if (status == 'accepted') ...[
+                                if (status == 'accepted' &&
+                                    !hasProposal) ...[
                                   const SizedBox(height: 12),
                                   SizedBox(
                                     width: double.infinity,
@@ -945,7 +1328,8 @@ class _BookingsTabState extends State<_BookingsTab> {
                                           actions: [
                                             TextButton(
                                               onPressed: () =>
-                                                  Navigator.pop(context),
+                                                  Navigator.pop(
+                                                      context),
                                               child: const Text(
                                                   'Not yet'),
                                             ),
@@ -954,7 +1338,8 @@ class _BookingsTabState extends State<_BookingsTab> {
                                                 Navigator.pop(context);
                                                 await FirebaseFirestore
                                                     .instance
-                                                    .collection('bookings')
+                                                    .collection(
+                                                        'bookings')
                                                     .doc(filtered[index]
                                                         .id)
                                                     .update({
@@ -964,13 +1349,15 @@ class _BookingsTabState extends State<_BookingsTab> {
                                                     .sendNotification(
                                                   toUserId:
                                                       data['clientId'],
-                                                  title: 'Job Completed',
+                                                  title:
+                                                      'Job Completed',
                                                   body:
                                                       '${data['providerName'] ?? 'Your provider'} has marked the job on ${data['date']} as completed. Leave a review!',
                                                   type:
                                                       'booking_completed',
                                                   bookingId:
-                                                      filtered[index].id,
+                                                      filtered[index]
+                                                          .id,
                                                 );
                                               },
                                               child: const Text(
@@ -1027,16 +1414,18 @@ class _BookingsTabState extends State<_BookingsTab> {
                                           actions: [
                                             TextButton(
                                               onPressed: () =>
-                                                  Navigator.pop(context),
-                                              child:
-                                                  const Text('Keep it'),
+                                                  Navigator.pop(
+                                                      context),
+                                              child: const Text(
+                                                  'Keep it'),
                                             ),
                                             TextButton(
                                               onPressed: () async {
                                                 Navigator.pop(context);
                                                 await FirebaseFirestore
                                                     .instance
-                                                    .collection('bookings')
+                                                    .collection(
+                                                        'bookings')
                                                     .doc(filtered[index]
                                                         .id)
                                                     .update({
@@ -1053,7 +1442,8 @@ class _BookingsTabState extends State<_BookingsTab> {
                                                   type:
                                                       'booking_cancelled',
                                                   bookingId:
-                                                      filtered[index].id,
+                                                      filtered[index]
+                                                          .id,
                                                 );
                                               },
                                               child: const Text(
@@ -1071,7 +1461,8 @@ class _BookingsTabState extends State<_BookingsTab> {
                                           Icons.cancel_outlined,
                                           color: Colors.red,
                                           size: 16),
-                                      label: const Text('Cancel Booking',
+                                      label: const Text(
+                                          'Cancel Booking',
                                           style: TextStyle(
                                               color: Colors.red,
                                               fontWeight:
@@ -1134,7 +1525,6 @@ class _ProviderProfileTabState extends State<_ProviderProfileTab> {
           .collection('users')
           .doc(uid)
           .update({'name': _nameController.text.trim()});
-
       final providerDoc = await FirebaseFirestore.instance
           .collection('providers')
           .doc(uid)
@@ -1145,7 +1535,6 @@ class _ProviderProfileTabState extends State<_ProviderProfileTab> {
             .doc(uid)
             .update({'name': _nameController.text.trim()});
       }
-
       if (!mounted) return;
       setState(() => _isEditing = false);
       ScaffoldMessenger.of(context).showSnackBar(
@@ -1192,35 +1581,34 @@ class _ProviderProfileTabState extends State<_ProviderProfileTab> {
 
         final userData =
             (snapshot.data![0] as DocumentSnapshot).data()
-                as Map<String, dynamic>? ??
-            {};
+                    as Map<String, dynamic>? ??
+                {};
         final providerData =
             (snapshot.data![1] as DocumentSnapshot).data()
-                as Map<String, dynamic>? ??
-            {};
-        final bookings =
-            (snapshot.data![2] as QuerySnapshot).docs;
-        final reviews =
-            (snapshot.data![3] as QuerySnapshot).docs;
+                    as Map<String, dynamic>? ??
+                {};
+        final bookings = (snapshot.data![2] as QuerySnapshot).docs;
+        final reviews = (snapshot.data![3] as QuerySnapshot).docs;
 
         final name = userData['name'] ?? 'Provider';
-        final email =
-            userData['email'] ?? widget.user?.email ?? '';
-        final rating =
-            (providerData['rating'] ?? 0.0).toDouble();
+        final email = userData['email'] ?? widget.user?.email ?? '';
+        final rating = (providerData['rating'] ?? 0.0).toDouble();
         final isVerified = providerData['isVerified'] ?? false;
+        final phone = providerData['phone'] ?? '-';
+        final address = providerData['address'] ?? '-';
+        final serviceArea = providerData['serviceArea'] ?? '-';
 
         final completed = bookings
             .where((b) =>
                 (b.data() as Map)['status'] == 'completed')
             .length;
         final pending = bookings
-            .where((b) =>
-                (b.data() as Map)['status'] == 'pending')
+            .where(
+                (b) => (b.data() as Map)['status'] == 'pending')
             .length;
         final accepted = bookings
-            .where((b) =>
-                (b.data() as Map)['status'] == 'accepted')
+            .where(
+                (b) => (b.data() as Map)['status'] == 'accepted')
             .length;
 
         if (!_isEditing && _nameController.text.isEmpty) {
@@ -1308,7 +1696,8 @@ class _ProviderProfileTabState extends State<_ProviderProfileTab> {
                                 ? const Color(0xFF10B981)
                                     .withOpacity(0.2)
                                 : Colors.orange.withOpacity(0.2),
-                            borderRadius: BorderRadius.circular(20),
+                            borderRadius:
+                                BorderRadius.circular(20),
                           ),
                           child: Row(
                             children: [
@@ -1344,7 +1733,8 @@ class _ProviderProfileTabState extends State<_ProviderProfileTab> {
                       children: [
                         if (_isEditing) ...[
                           TextButton(
-                            onPressed: _isSaving ? null : _saveName,
+                            onPressed:
+                                _isSaving ? null : _saveName,
                             style: TextButton.styleFrom(
                               backgroundColor:
                                   Colors.white.withOpacity(0.2),
@@ -1359,8 +1749,8 @@ class _ProviderProfileTabState extends State<_ProviderProfileTab> {
                           ),
                           const SizedBox(width: 8),
                           TextButton(
-                            onPressed: () =>
-                                setState(() => _isEditing = false),
+                            onPressed: () => setState(
+                                () => _isEditing = false),
                             style: TextButton.styleFrom(
                               backgroundColor:
                                   Colors.white.withOpacity(0.1),
@@ -1374,8 +1764,8 @@ class _ProviderProfileTabState extends State<_ProviderProfileTab> {
                           ),
                         ] else
                           TextButton.icon(
-                            onPressed: () =>
-                                setState(() => _isEditing = true),
+                            onPressed: () => setState(
+                                () => _isEditing = true),
                             icon: const Icon(Icons.edit_rounded,
                                 color: Colors.white, size: 14),
                             label: const Text('Edit Profile',
@@ -1410,9 +1800,7 @@ class _ProviderProfileTabState extends State<_ProviderProfileTab> {
                     _statCard('$completed', 'Completed',
                         Icons.check_circle_rounded),
                     const SizedBox(width: 12),
-                    _statCard(
-                        rating.toStringAsFixed(1),
-                        'Rating',
+                    _statCard(rating.toStringAsFixed(1), 'Rating',
                         Icons.star_rounded),
                   ],
                 ),
@@ -1466,6 +1854,21 @@ class _ProviderProfileTabState extends State<_ProviderProfileTab> {
                           icon: Icons.mail_outline_rounded,
                           label: 'Email',
                           value: email),
+                      _divider(),
+                      _infoRow(
+                          icon: Icons.phone_outlined,
+                          label: 'Phone',
+                          value: phone),
+                      _divider(),
+                      _infoRow(
+                          icon: Icons.home_outlined,
+                          label: 'Address',
+                          value: address),
+                      _divider(),
+                      _infoRow(
+                          icon: Icons.location_on_outlined,
+                          label: 'Service Area',
+                          value: serviceArea),
                       _divider(),
                       _infoRow(
                           icon: Icons.shield_outlined,
@@ -1565,10 +1968,11 @@ class _ProviderProfileTabState extends State<_ProviderProfileTab> {
     );
   }
 
-  Widget _infoRow(
-      {required IconData icon,
-      required String label,
-      required String value}) {
+  Widget _infoRow({
+    required IconData icon,
+    required String label,
+    required String value,
+  }) {
     return Padding(
       padding: const EdgeInsets.symmetric(
           horizontal: 16, vertical: 14),
@@ -1584,21 +1988,23 @@ class _ProviderProfileTabState extends State<_ProviderProfileTab> {
             child: Icon(icon, color: _primary, size: 18),
           ),
           const SizedBox(width: 14),
-          Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(label,
-                  style: const TextStyle(
-                      fontSize: 11,
-                      color: _textSecondary,
-                      fontWeight: FontWeight.w500)),
-              const SizedBox(height: 2),
-              Text(value,
-                  style: const TextStyle(
-                      fontSize: 14,
-                      color: _textPrimary,
-                      fontWeight: FontWeight.w600)),
-            ],
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(label,
+                    style: const TextStyle(
+                        fontSize: 11,
+                        color: _textSecondary,
+                        fontWeight: FontWeight.w500)),
+                const SizedBox(height: 2),
+                Text(value,
+                    style: const TextStyle(
+                        fontSize: 14,
+                        color: _textPrimary,
+                        fontWeight: FontWeight.w600)),
+              ],
+            ),
           ),
         ],
       ),
@@ -1606,8 +2012,5 @@ class _ProviderProfileTabState extends State<_ProviderProfileTab> {
   }
 
   Widget _divider() => const Divider(
-      height: 1,
-      thickness: 0.5,
-      indent: 66,
-      endIndent: 16);
+      height: 1, thickness: 0.5, indent: 66, endIndent: 16);
 }

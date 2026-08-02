@@ -60,6 +60,11 @@ class ProviderProfileScreen extends StatelessWidget {
           final reviews = reviewsSnap.docs;
           final bookingCount =
               providerData['bookingCount'] ?? 0;
+          final isVerified = providerData['isVerified'] == true;
+          final phone = providerData['phone'] ?? '';
+          final email = providerData['email'] ?? '';
+          final hasContact =
+              isVerified && (phone.isNotEmpty || email.isNotEmpty);
 
           return CustomScrollView(
             slivers: [
@@ -97,11 +102,21 @@ class ProviderProfileScreen extends StatelessWidget {
                           ),
                         ),
                         const SizedBox(height: 12),
-                        Text(providerName,
-                            style: const TextStyle(
-                                color: Colors.white,
-                                fontSize: 20,
-                                fontWeight: FontWeight.w700)),
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            Text(providerName,
+                                style: const TextStyle(
+                                    color: Colors.white,
+                                    fontSize: 20,
+                                    fontWeight: FontWeight.w700)),
+                            if (isVerified) ...[
+                              const SizedBox(width: 6),
+                              const Icon(Icons.verified_rounded,
+                                  color: Colors.white, size: 18),
+                            ],
+                          ],
+                        ),
                         const SizedBox(height: 6),
                         Row(
                           mainAxisAlignment:
@@ -158,6 +173,77 @@ class ProviderProfileScreen extends StatelessWidget {
                         ],
                       ),
                     ),
+
+                    // Verified contact card — visible to any client
+                    // browsing the profile once the provider is approved.
+                    if (hasContact)
+                      Padding(
+                        padding:
+                            const EdgeInsets.fromLTRB(20, 0, 20, 20),
+                        child: Container(
+                          padding: const EdgeInsets.all(16),
+                          decoration: BoxDecoration(
+                            color: const Color(0xFFECFDF5),
+                            borderRadius: BorderRadius.circular(16),
+                            border: Border.all(
+                                color: const Color(0xFF10B981)
+                                    .withOpacity(0.2)),
+                          ),
+                          child: Column(
+                            crossAxisAlignment:
+                                CrossAxisAlignment.start,
+                            children: [
+                              Row(
+                                children: [
+                                  const Icon(Icons.verified_rounded,
+                                      size: 15,
+                                      color: Color(0xFF10B981)),
+                                  const SizedBox(width: 8),
+                                  const Text('Verified Contact',
+                                      style: TextStyle(
+                                          fontSize: 12,
+                                          fontWeight: FontWeight.w700,
+                                          color: Color(0xFF10B981))),
+                                ],
+                              ),
+                              if (phone.isNotEmpty) ...[
+                                const SizedBox(height: 10),
+                                Row(
+                                  children: [
+                                    const Icon(Icons.phone_rounded,
+                                        size: 14,
+                                        color: _textSecondary),
+                                    const SizedBox(width: 8),
+                                    Text(phone,
+                                        style: const TextStyle(
+                                            fontSize: 13,
+                                            color: _textPrimary,
+                                            fontWeight:
+                                                FontWeight.w500)),
+                                  ],
+                                ),
+                              ],
+                              if (email.isNotEmpty) ...[
+                                const SizedBox(height: 8),
+                                Row(
+                                  children: [
+                                    const Icon(Icons.email_rounded,
+                                        size: 14,
+                                        color: _textSecondary),
+                                    const SizedBox(width: 8),
+                                    Text(email,
+                                        style: const TextStyle(
+                                            fontSize: 13,
+                                            color: _textPrimary,
+                                            fontWeight:
+                                                FontWeight.w500)),
+                                  ],
+                                ),
+                              ],
+                            ],
+                          ),
+                        ),
+                      ),
 
                     // Services section
                     const Padding(
