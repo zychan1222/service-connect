@@ -1,6 +1,9 @@
+import 'dart:typed_data';
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_storage/firebase_storage.dart';
+import 'package:image_picker/image_picker.dart';
 
 class ProviderVerificationScreen extends StatefulWidget {
   const ProviderVerificationScreen({super.key});
@@ -21,6 +24,14 @@ class _ProviderVerificationScreenState
   final _addressController = TextEditingController();
   bool _isLoading = false;
 
+  // Verification documents (e.g. IC photo, certifications) picked by the
+  // provider before submission. Stored as bytes so this works on both
+  // mobile and web (XFile.readAsBytes avoids dart:io File, which isn't
+  // available on web).
+  final List<_PickedDoc> _pickedDocs = [];
+  static const int _maxDocs = 3;
+  bool _isUploadingDocs = false;
+
   static const _primary = Color(0xFF2563EB);
   static const _bg = Color(0xFFF7F8FA);
   static const _textPrimary = Color(0xFF0F172A);
@@ -38,8 +49,59 @@ class _ProviderVerificationScreenState
     super.dispose();
   }
 
+  Future<void> _pickDocument() async {
+    if (_pickedDocs.length >= _maxDocs) return;
+    final picker = ImagePicker();
+    final XFile? file = await picker.pickImage(
+      source: ImageSource.gallery,
+      imageQuality: 80,
+      maxWidth: 1600,
+    );
+    if (file == null) return;
+    final bytes = await file.readAsBytes();
+    setState(() {
+      _pickedDocs.add(_PickedDoc(name: file.name, bytes: bytes));
+    });
+  }
+
+  void _removeDocument(int index) {
+    setState(() => _pickedDocs.removeAt(index));
+  }
+
+  /// Uploads every picked document to Firebase Storage under
+  /// verification_documents/{uid}/ and returns their download URLs plus
+  /// display names, ready to save on the verification request.
+  Future<List<Map<String, String>>> _uploadDocuments(String uid) async {
+    final results = <Map<String, String>>[];
+    for (var i = 0; i < _pickedDocs.length; i++) {
+      final doc = _pickedDocs[i];
+      final ref = FirebaseStorage.instance
+          .ref()
+          .child('verification_documents')
+          .child(uid)
+          .child('${DateTime.now().millisecondsSinceEpoch}_$i.jpg');
+      await ref.putData(
+        doc.bytes,
+        SettableMetadata(contentType: 'image/jpeg'),
+      );
+      final url = await ref.getDownloadURL();
+      results.add({'name': doc.name, 'url': url});
+    }
+    return results;
+  }
+
   Future<void> _submitVerification() async {
     if (!_formKey.currentState!.validate()) return;
+    if (_pickedDocs.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text(
+              'Please attach at least one verification document (e.g. IC or certification photo)'),
+          backgroundColor: Colors.red,
+        ),
+      );
+      return;
+    }
     setState(() => _isLoading = true);
     try {
       final user = FirebaseAuth.instance.currentUser!;
@@ -49,6 +111,12 @@ class _ProviderVerificationScreenState
           .get();
       final name = userDoc.data()?['name'] ?? 'Provider';
       final email = userDoc.data()?['email'] ?? '';
+
+      // Upload verification documents first so we can attach their URLs
+      // to the request below.
+      setState(() => _isUploadingDocs = true);
+      final documents = await _uploadDocuments(user.uid);
+      setState(() => _isUploadingDocs = false);
 
       // Save verification request
       await FirebaseFirestore.instance
@@ -64,6 +132,7 @@ class _ProviderVerificationScreenState
         'certifications': _certificationsController.text.trim(),
         'serviceArea': _serviceAreaController.text.trim(),
         'address': _addressController.text.trim(),
+        'documents': documents,
         'status': 'pending',
         'submittedAt': FieldValue.serverTimestamp(),
       });
@@ -101,7 +170,12 @@ class _ProviderVerificationScreenState
             backgroundColor: Colors.red),
       );
     } finally {
-      if (mounted) setState(() => _isLoading = false);
+      if (mounted) {
+        setState(() {
+          _isLoading = false;
+          _isUploadingDocs = false;
+        });
+      }
     }
   }
 
@@ -432,6 +506,20 @@ class _ProviderVerificationScreenState
                 v!.isEmpty ? 'Service area is required' : null,
           ),
 
+          const SizedBox(height: 24),
+
+          // Verification Documents
+          _sectionLabel('Verification Documents'),
+          const SizedBox(height: 4),
+          const Text(
+            'Upload a photo of your IC and any certifications (max 3). '
+            'These are reviewed by an admin before your account is verified.',
+            style: TextStyle(
+                color: _textSecondary, fontSize: 12, height: 1.4),
+          ),
+          const SizedBox(height: 12),
+          _buildDocumentPicker(),
+
           const SizedBox(height: 32),
 
           SizedBox(
@@ -446,11 +534,24 @@ class _ProviderVerificationScreenState
                     borderRadius: BorderRadius.circular(14)),
               ),
               child: _isLoading
-                  ? const SizedBox(
-                      width: 22,
-                      height: 22,
-                      child: CircularProgressIndicator(
-                          color: Colors.white, strokeWidth: 2.5),
+                  ? Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        const SizedBox(
+                          width: 22,
+                          height: 22,
+                          child: CircularProgressIndicator(
+                              color: Colors.white, strokeWidth: 2.5),
+                        ),
+                        if (_isUploadingDocs) ...[
+                          const SizedBox(width: 12),
+                          const Text('Uploading documents...',
+                              style: TextStyle(
+                                  color: Colors.white,
+                                  fontSize: 14,
+                                  fontWeight: FontWeight.w600)),
+                        ],
+                      ],
                     )
                   : const Text('Submit for Verification',
                       style: TextStyle(
@@ -462,6 +563,81 @@ class _ProviderVerificationScreenState
           const SizedBox(height: 32),
         ],
       ),
+    );
+  }
+
+  Widget _buildDocumentPicker() {
+    return Wrap(
+      spacing: 12,
+      runSpacing: 12,
+      children: [
+        ..._pickedDocs.asMap().entries.map((entry) {
+          final index = entry.key;
+          final doc = entry.value;
+          return Stack(
+            clipBehavior: Clip.none,
+            children: [
+              Container(
+                width: 88,
+                height: 88,
+                decoration: BoxDecoration(
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(color: _border),
+                  image: DecorationImage(
+                    image: MemoryImage(doc.bytes),
+                    fit: BoxFit.cover,
+                  ),
+                ),
+              ),
+              Positioned(
+                top: -8,
+                right: -8,
+                child: GestureDetector(
+                  onTap: () => _removeDocument(index),
+                  child: Container(
+                    width: 24,
+                    height: 24,
+                    decoration: const BoxDecoration(
+                      color: Colors.red,
+                      shape: BoxShape.circle,
+                    ),
+                    child: const Icon(Icons.close_rounded,
+                        color: Colors.white, size: 16),
+                  ),
+                ),
+              ),
+            ],
+          );
+        }),
+        if (_pickedDocs.length < _maxDocs)
+          GestureDetector(
+            onTap: _pickDocument,
+            child: Container(
+              width: 88,
+              height: 88,
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(
+                    color: _primary.withOpacity(0.4),
+                    style: BorderStyle.solid),
+              ),
+              child: const Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Icon(Icons.add_a_photo_outlined,
+                      color: _primary, size: 22),
+                  SizedBox(height: 6),
+                  Text('Add',
+                      style: TextStyle(
+                          color: _primary,
+                          fontSize: 11,
+                          fontWeight: FontWeight.w600)),
+                ],
+              ),
+            ),
+          ),
+      ],
     );
   }
 
@@ -532,4 +708,12 @@ class _ProviderVerificationScreenState
       ],
     );
   }
+}
+
+/// A verification document the provider has picked but not yet uploaded.
+class _PickedDoc {
+  final String name;
+  final Uint8List bytes;
+
+  _PickedDoc({required this.name, required this.bytes});
 }

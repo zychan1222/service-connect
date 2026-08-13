@@ -416,6 +416,221 @@ class AdminDashboardScreen extends StatelessWidget {
                             },
                           ),
 
+                          // Verification details + documents (IC, address,
+                          // experience, certifications, submitted photos)
+                          FutureBuilder<DocumentSnapshot>(
+                            future: FirebaseFirestore.instance
+                                .collection('verificationRequests')
+                                .doc(pending[index].id)
+                                .get(),
+                            builder: (context, reqSnap) {
+                              if (!reqSnap.hasData ||
+                                  !reqSnap.data!.exists) {
+                                return const SizedBox.shrink();
+                              }
+                              final reqData = reqSnap.data!.data()
+                                  as Map<String, dynamic>;
+                              final docs = (reqData['documents']
+                                      as List<dynamic>?) ??
+                                  [];
+                              final icNumber =
+                                  (reqData['icNumber'] ?? '')
+                                      .toString();
+                              final address =
+                                  (reqData['address'] ?? '')
+                                      .toString();
+                              final serviceArea =
+                                  (reqData['serviceArea'] ?? '')
+                                      .toString();
+                              final experience = (reqData[
+                                          'yearsOfExperience'] ??
+                                      '')
+                                  .toString();
+                              final certifications = (reqData[
+                                          'certifications'] ??
+                                      '')
+                                  .toString();
+
+                              return Padding(
+                                padding:
+                                    const EdgeInsets.only(top: 12),
+                                child: Column(
+                                  crossAxisAlignment:
+                                      CrossAxisAlignment.start,
+                                  children: [
+                                    // Verification Details
+                                    Container(
+                                      width: double.infinity,
+                                      padding:
+                                          const EdgeInsets.all(12),
+                                      decoration: BoxDecoration(
+                                        color: _bg,
+                                        borderRadius:
+                                            BorderRadius.circular(
+                                                12),
+                                      ),
+                                      child: Column(
+                                        crossAxisAlignment:
+                                            CrossAxisAlignment
+                                                .start,
+                                        children: [
+                                          _detailRow(
+                                              Icons.badge_outlined,
+                                              'IC Number',
+                                              icNumber),
+                                          _detailRow(
+                                              Icons.home_outlined,
+                                              'Address',
+                                              address),
+                                          _detailRow(
+                                              Icons
+                                                  .location_on_outlined,
+                                              'Service Area',
+                                              serviceArea),
+                                          _detailRow(
+                                              Icons
+                                                  .work_outline_rounded,
+                                              'Experience',
+                                              experience.isEmpty
+                                                  ? ''
+                                                  : '$experience year${experience == '1' ? '' : 's'}'),
+                                          _detailRow(
+                                              Icons
+                                                  .workspace_premium_outlined,
+                                              'Certifications',
+                                              certifications.isEmpty
+                                                  ? 'None provided'
+                                                  : certifications,
+                                              isLast: true),
+                                        ],
+                                      ),
+                                    ),
+
+                                    const SizedBox(height: 12),
+
+                                    // Documents
+                                    if (docs.isEmpty)
+                                      Row(
+                                        children: [
+                                          Icon(
+                                              Icons
+                                                  .warning_amber_rounded,
+                                              size: 14,
+                                              color: Colors.red[400]),
+                                          const SizedBox(width: 6),
+                                          Text(
+                                              'No documents submitted',
+                                              style: TextStyle(
+                                                  fontSize: 12,
+                                                  color: Colors
+                                                      .red[400],
+                                                  fontWeight:
+                                                      FontWeight
+                                                          .w500)),
+                                        ],
+                                      )
+                                    else ...[
+                                      Text(
+                                        '${docs.length} document${docs.length == 1 ? '' : 's'} submitted:',
+                                        style: const TextStyle(
+                                            fontSize: 12,
+                                            color: _textSecondary,
+                                            fontWeight:
+                                                FontWeight.w500),
+                                      ),
+                                      const SizedBox(height: 8),
+                                      SizedBox(
+                                        height: 64,
+                                        child: ListView.separated(
+                                          scrollDirection:
+                                              Axis.horizontal,
+                                          itemCount: docs.length,
+                                          separatorBuilder:
+                                              (_, __) =>
+                                                  const SizedBox(
+                                                      width: 8),
+                                          itemBuilder:
+                                              (context, di) {
+                                            final d = docs[di]
+                                                as Map<String,
+                                                    dynamic>;
+                                            final url = d['url']
+                                                    as String? ??
+                                                '';
+                                            return GestureDetector(
+                                              onTap: () =>
+                                                  _openDocumentViewer(
+                                                      context,
+                                                      docs.cast<
+                                                          Map<
+                                                              String,
+                                                              dynamic>>(),
+                                                      di),
+                                              child: ClipRRect(
+                                                borderRadius:
+                                                    BorderRadius
+                                                        .circular(
+                                                            10),
+                                                child: Image.network(
+                                                  url,
+                                                  width: 64,
+                                                  height: 64,
+                                                  fit: BoxFit.cover,
+                                                  loadingBuilder:
+                                                      (context,
+                                                          child,
+                                                          progress) {
+                                                    if (progress ==
+                                                        null) {
+                                                      return child;
+                                                    }
+                                                    return Container(
+                                                      width: 64,
+                                                      height: 64,
+                                                      color: _bg,
+                                                      child:
+                                                          const Center(
+                                                        child:
+                                                            SizedBox(
+                                                          width: 18,
+                                                          height:
+                                                              18,
+                                                          child:
+                                                              CircularProgressIndicator(
+                                                                  strokeWidth:
+                                                                      2),
+                                                        ),
+                                                      ),
+                                                    );
+                                                  },
+                                                  errorBuilder:
+                                                      (context,
+                                                              error,
+                                                              stackTrace) =>
+                                                          Container(
+                                                    width: 64,
+                                                    height: 64,
+                                                    color: _bg,
+                                                    child: const Icon(
+                                                        Icons
+                                                            .broken_image_outlined,
+                                                        color:
+                                                            _textSecondary,
+                                                        size: 20),
+                                                  ),
+                                                ),
+                                              ),
+                                            );
+                                          },
+                                        ),
+                                      ),
+                                    ],
+                                  ],
+                                ),
+                              );
+                            },
+                          ),
+
                           const SizedBox(height: 14),
                           Row(
                             children: [
@@ -708,6 +923,106 @@ class AdminDashboardScreen extends StatelessWidget {
           ],
         ),
       ),
+    );
+  }
+
+  /// A single labelled row inside the "Verification Details" card
+  /// (e.g. IC Number, Address, Service Area, Experience, Certifications).
+  /// Rows with empty values are skipped so the card stays clean if a
+  /// provider left an optional field blank.
+  Widget _detailRow(IconData icon, String label, String value,
+      {bool isLast = false}) {
+    if (value.trim().isEmpty) return const SizedBox.shrink();
+    return Padding(
+      padding: EdgeInsets.only(bottom: isLast ? 0 : 8),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Icon(icon, size: 14, color: _textSecondary),
+          const SizedBox(width: 8),
+          SizedBox(
+            width: 92,
+            child: Text(label,
+                style: const TextStyle(
+                    fontSize: 12,
+                    color: _textSecondary,
+                    fontWeight: FontWeight.w500)),
+          ),
+          Expanded(
+            child: Text(value,
+                style: const TextStyle(
+                    fontSize: 12.5,
+                    color: _textPrimary,
+                    fontWeight: FontWeight.w500,
+                    height: 1.3)),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _openDocumentViewer(BuildContext context,
+      List<Map<String, dynamic>> docs, int initialIndex) {
+    showDialog(
+      context: context,
+      barrierColor: Colors.black,
+      builder: (context) {
+        final controller = PageController(initialPage: initialIndex);
+        return Dialog.fullscreen(
+          backgroundColor: Colors.black,
+          child: Stack(
+            children: [
+              PageView.builder(
+                controller: controller,
+                itemCount: docs.length,
+                itemBuilder: (context, i) {
+                  final url = docs[i]['url'] as String? ?? '';
+                  return InteractiveViewer(
+                    minScale: 0.8,
+                    maxScale: 4,
+                    child: Center(
+                      child: Image.network(
+                        url,
+                        errorBuilder: (context, error, stackTrace) =>
+                            const Icon(Icons.broken_image_outlined,
+                                color: Colors.white54, size: 48),
+                        loadingBuilder:
+                            (context, child, progress) {
+                          if (progress == null) return child;
+                          return const CircularProgressIndicator(
+                              color: Colors.white54);
+                        },
+                      ),
+                    ),
+                  );
+                },
+              ),
+              Positioned(
+                top: 40,
+                right: 16,
+                child: IconButton(
+                  icon: const Icon(Icons.close_rounded,
+                      color: Colors.white, size: 28),
+                  onPressed: () => Navigator.pop(context),
+                ),
+              ),
+              if (docs.length > 1)
+                Positioned(
+                  bottom: 40,
+                  left: 0,
+                  right: 0,
+                  child: Center(
+                    child: Text(
+                      '${initialIndex + 1} / ${docs.length}',
+                      style: const TextStyle(
+                          color: Colors.white70, fontSize: 13),
+                    ),
+                  ),
+                ),
+            ],
+          ),
+        );
+      },
     );
   }
 

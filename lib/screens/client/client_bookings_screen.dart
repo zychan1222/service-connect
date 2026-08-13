@@ -386,7 +386,6 @@ class ClientBookingsScreen extends StatelessWidget {
                         ),
                       ),
 
-                      // ---- Time proposal section ----
                       if (proposalStatus == 'pending' &&
                           proposedBy == 'provider') ...[
                         const SizedBox(height: 10),
